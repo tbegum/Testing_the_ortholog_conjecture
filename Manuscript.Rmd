@@ -110,7 +110,7 @@ E-mail: marc.robinson-rechavi@unil.ch
 
 ### Abstract
 
-Most comparative studies of functional genomics have used pairwise comparisons. Yet it has been shown that this can provide biased results, since genes, like species, are phylogenetically related. Phylogenetic comparative methods should allow to correct for this, but they depend on strong assumptions, including unbiased tree estimates relative to the hypothesis being tested. An ongoing trend in comparative genomic studies is to adopt phylogenetic comparative method to answer a wide range of biological questions including evolutionary hypotheses testing. Notably among them is the recently controversial ???Ortholog Conjecture??? that assumes the functional evolution is faster in paralogs than orthologs. Using pairwise comparisons of tissue specificity index ($\tau$), earlier we provided support for the ortholog conjecture. In contrast, a recent publication suggested that the ortholog conjecture is not supported by gene expression tissue-specificity using phylogenetic independent contrasts. We find that the gene trees used suffer from important biases, due to the inclusion of trees with no duplication nodes, to the relative age of speciations and duplications, to systematic differences in branch lengths, and to non-Brownian motion of tissue-specificity on many trees. We find some support for the ortholog conjecture, but especially that incorrect implementation of phylogenetic method in empirical gene with duplications can be problematic. 
+Most comparative studies of functional genomics have used pairwise comparisons. Yet it has been shown that this can provide biased results, since genes, like species, are phylogenetically related. Phylogenetic comparative methods should allow to correct for this, but they depend on strong assumptions, including unbiased tree estimates relative to the hypothesis being tested. Such methods have recently been used to test the "Ortholog Conjecture", the hypothesis that functional evolution is faster in paralogs than orthologs. Whereas pairwise comparisons of tissue specificity index ($\tau$) provided support for the ortholog conjecture, it was not supported using phylogenetic independent contrasts. We find that the gene trees used suffer from important biases, due to the inclusion of trees with no duplication nodes, to the relative age of speciations and duplications, to systematic differences in branch lengths, and to non-Brownian motion of tissue-specificity on many trees. We find some support for the ortholog conjecture, but especially that incorrect implementation of phylogenetic method in empirical gene trees with duplications can be problematic.  
 
 ### Author Summary
 
@@ -123,11 +123,10 @@ There is a lot of interest in understanding the evolution of gene function. Comp
 
 The "Ortholog Conjecture", a cornerstone of phylogenomics, has become a topic of debate in recent years [@RN771;@RN774;@RN790;@RN793;@RN794;@RN762;@RN760;@RN770;@RN792]. Dealing with the roles of gene duplications in functional evolution, the ortholog conjecture is routinely used by both experimental and computational biologists in predicting, or understanding gene function. According to this model, orthologs (i.e. homologous genes which diverged by a speciation event) retain equivalent or very similar functions, whereas paralogs (i.e. homologous genes which diverged by a duplication event) share less similar functions [@RN771]. This is linked to the hypothesis that paralogs evolve more rapidly. This hypothesis was challenged by results suggesting that paralogs would be functionally more similar than orthologs [@RN774]. Such findings not only raised questions on the evolutionary role of gene duplication but also questioned the reliability of using orthologs to annotate unknown gene functions in different species [@RN844]. Several more recent studies [@RN770;@RN790;@RN793;@RN794;@RN762] found support for ortholog conjecture, mostly based on comparisons of gene expression data. 
 
-\vspace{0.05cm}
+
 While all previous studies of the ortholog conjecture had used pairwise comparisons of orthologs and paralogs, a recent article suggested that this was flawed, and that phylogenetic comparative methods should be used [@RN760]. In the field of comparative biology, most of the studies still rely on the pairwise method including the testing of the ortholog conjecture. Ignorance of phylogenetic structure has been reported to underestimate the fundamental assumption of independent observations in statistics [@RN773;@RN807]. A solution is to use phylogeny-based methods to investigate such evolutionary patterns [@RN782;@RN807;@RN779;@RN780;@RN773;@RN850;@RN849]. There are three main such phylogenetic methods: Phylogenetic Independent Contrast (PIC) [@RN773], Phylogenetic Generalized Least-Square (PGLS) [@RN850], and Monte Carlo computer simulation [@RN849]. PIC is widely adopted for its relative simplicity, and its applicability to a wide range of statistical procedures [@RN781;@RN760]. The performance of PIC relies on three basic assumptions: a correct tree topology; accurate branch lengths; and trait evolution following a Brownian model (where trait variance accrues as a linear function of time)  [@RN781;@RN782;@RN783;@RN807;@RN780;@RN779;@RN816]. If any of these assumptions is incorrect, this can lead to incorrect interpretation of results. This is probably why the application of such phylogenetic methods is still limited, and debated even after being introduced about three decades ago [@RN781;@RN782;@RN783;@RN807;@RN780]. Dunn et al. [@RN760] took an innovative approach in applying PIC to compare the divergence rates between two different events ("speciation" and "duplication") to test the ortholog conjecture. However, such an application might be problematic since the time of occurrence of gene duplication, one of the two types of events compared, is unknowable by external information (e.g. no fossil evidence). Therefore, further study is required to understand why Dunn et al. [@RN760] obtained results which are inconsistent with most studies by using the phylogenetic method. It is possible that all the conclusions drawn by previous studies on gene duplication are incorrect due to overlooking phylogenetic tree structure. If so, it should be well supported.
 
  
-\vspace{0.05cm}
 We re-examined the data of Dunn et al., after reproducing it using the resources and scripts provided by the authors [@RN760]. Our reanalysis highlights potential problems associated with phylogenetic independent contrasts when applied to the impact of gene duplication. Finally, with proper controls, the phylogenetic method supports the ortholog conjecture.
 
 ### Results
@@ -183,6 +182,7 @@ __Issues with naive use of Phylogenetic Independent Contrasts (PICs)__
 To understand their results, we first reanalyzed the data of Dunn et al. [@RN760]. We were able to reproduce all the results published in their article by running the code, which they clearly supplied. Dunn et al. reported a non-significant result for the PIC under the null simulation, using a Wilcoxon one-tailed rank test to check if the contrasts of duplication events are higher than the contrasts of speciation events (*P* = $`r format(wilcox_one_tailed1, digits= 3, scientific = FALSE)`$). Surprisingly, the PIC rejects the null hypothesis on the null simulations with a Wilcoxon two-tailed rank test (Fig 1A), with significant support for higher contrasts after speciation than duplication. This was robust to repeating the simulations with different random seed number (S1 Fig). This indicates that neither of the methods, PIC or pairwise, worked properly for these calibrated trees, since both rejects the null when simulations are performed under null. 
 
 PIC is standardized by the expected variance of daughter branch lengths for each node of event [@RN807;@RN782;@RN779;@RN780]. Therefore, accurate branch length estimation in absolute time (e.g. in Million Years -- My) is needed [@RN781;@RN782;@RN807;@RN779;@RN780]. Since the accuracy and performance of the PIC method largely depend on proper branch length calibration [@RN779;@RN768;@RN782] we investigated possible biases created during calibration of gene trees, especially concerning duplication times for which we have no external reference (e.g. no fossils) (S2 Fig). 
+
 
 
 ```{r phylogenetic_analyses_trees_with_strong_signals, eval=T, echo=F, message=F, warning=F}
@@ -307,6 +307,8 @@ The purpose of applying a phylogenetic method is to generate independent statist
 ```
 
 
+
+
 ```{r Deatiled_analyses_on_empirical_data, echo=F, message=F, warning=F}
   
   ## Obtaining calibration time points for speciation and duplication events for empirical data
@@ -346,6 +348,7 @@ The purpose of applying a phylogenetic method is to generate independent statist
   check_df1$Event <- factor(check_df1$Event, levels=c("Speciation", "Duplication"))
  
 ```
+
 
 
 Dunn et al. [@RN760] used `r nrow(calibration_times_focal)` speciation time points to calibrate gene trees. The oldest speciation calibration was at `r max(calibration_times_focal$age)` My.  All other calibrated nodes were duplication nodes leading to obtain ~`r length(duplication.empirical)` unique duplication time points for the `r length(gene_trees_calibrated)` calibrated trees [@RN760]. Out of these, `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` time points preceded the oldest speciation node age. Surprisingly, the calibrated node age of the oldest duplication event was found to be `r as.integer(max(duplication.empirical))` My, that is, 2600 times older than the Earth. This is indicative of the difficulty of estimating the age of ancient duplications by phylogenetic methods. Those `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` high duplication node ages eventually led to much larger expected variances for gene duplication events (median expected variance for duplication events preceding the oldest speciation events: `r round(median(Exp_var.duplication.precede.speciation),0)`, median expected variance for speciation events: `r round(median(Exp_var.speciation),0)`). This explains why the mean paralog distance was ~`r round((paralog_distance_mean/ortholog_distance_mean),1)` times higher than that of the mean ortholog distance (S4A Fig). This data distribution also makes it appear as if no speciation happened before `r max(speciation.empirical)` My, a problem shared with the pairwise analysis of the same data [@RN762]. There are also branch length issues for duplication events younger than the oldest speciation events, including very short branches and negative branch lengths. All this led to obtain abnormally high duplication contrasts for the empirical data. To limit such problems, Dunn et al. [@RN760] removed node contrasts higher than 0.5 on the empirical data (this does not impact Fig 1, as the simulation data never has such high contrasts). Following this practice, there are still higher expected variances following gene duplication events (S4A and S4B Figs). In the null simulations only the $\tau$ values are simulated, while the branch lengths (hence the variances) are taken from the empirical data, and thus share its biases. This explains why contrasts are lower for duplications than for speciations under null simulations as well as with empirical data.
@@ -413,6 +416,7 @@ __Randomization tests to assess the performance of phylogenetic method__
 
 
 
+
 ```{r randomization_events_trees, eval=T, echo=F, message=F, warning=F}
 
   ## All calibrated trees with permuted actual internal node events
@@ -457,6 +461,8 @@ __Randomization tests to assess the performance of phylogenetic method__
   median_nodes_contrast_random_event_ftree$pic.round <- paste0("Median = ",round(median_nodes_contrast_random_event_ftree$pic,4),sep="")
 
 ```
+
+
 
 
 ```{r additional_analyses, eval=T, echo=F, message=F, warning=F}
@@ -514,9 +520,12 @@ __Randomization tests to assess the performance of phylogenetic method__
 ```
 
 
+
 We used randomization tests to assess whether the results of different analyses of the empirical dataset are reliable and unbiased. In a first randomization test, we randomized the trait values (i.e. randomly permuting the $\tau$ values) across the tips of each tree without altering the node events of the trees. We then computed the contrasts for the speciation and duplication events of the trees when there is no relation between trait values and phylogenetic relationships. When we compared the nodes contrasts of speciation and duplication events of these randomized trees (Fig 2A), we found the same pattern as reported for the empirical gene trees by Dunn et al. [@RN760]. This shows that the PIC applied to these data is not measuring phenotypic evolution. It confirms that results are driven by their large differences in branch lengths (i.e. in expected variances) (Fig 2B), as on simulated null data. Any effect of trait divergence rates of speciation and duplication events is masked by this branch length difference. This violates the basic assumption of applicability of the PIC method to Brownian trait evolution. To remove the problem of difference in expected variances of the two events, we performed a second randomization test: we kept the original $\tau$ value for tips but randomly shuffled the events (duplication or speciation) of internal nodes of the empirical gene trees to maintain the original proportions of speciation and duplication events. The resulting trend (Fig 2C) still resembled the empirical gene trees data of Dunn et al. [@RN760]. This appears due to the fact that the majority of the tree events are speciation events (Fig 2D) with speciation node ages $\leq$ 296 My. Most of the trees with many duplication events on the other hand have ancient duplication events (duplication node age > 296 My) for which the evolutionary rates of duplication are often masked by the effect of longer branch lengths. Hence, opposite to our expectation, the calibrated trees with no or few duplications have higher overall nodes contrast (apparent fast evolution) than trees with many duplications (apparent slow evolution). This might be due to greater difficulty in detecting paralogs for fast evolving genes. Therefore, reshuffling of the events may not change the observed pattern of higher speciation contrasts than duplication contrasts.
 
 Out of `r length(gene_trees_calibrated)` calibrated trees, `r trees_with_no_duplication` were species-only trees with no duplication events. For these `r trees_with_no_duplication` trees, random shuffling of events had no impact. To avoid this bias, we removed those `r trees_with_no_duplication` speciation trees as well as trees with negative branch lengths, and randomized the trait or the internal node events 100 times on the remaining `r length(trees_of_interest)` trees. However, we still always obtained significantly higher contrasts of speciation than of duplication (S5A and S5B Figs). The randomization tests pattern is the same when we used `r subset.trees` trees with strong phylogenetic signals (S5C and S5D Figs). All these analyses indicate that the results reported by Dunn et al. [@RN760] are biased by the available gene trees, and that this bias is not easy to correct.
+
+
 
 ```{r Fig2, dpi=400,fig.width=8, fig.height=8, fig.cap="**Fig 2**: Analyses on calibrated empirical gene trees of Dunn et al. [@RN760]. *P* values are from  Wilcoxon two-tailed tests. (A) Randomly shuffling the $\\tau$ values of the tips for 8520 gene trees does not alter the trend of empirical result [@RN760] showing an opposite trend to the ortholog conjecture. (B) The figure indicates the expected variance is much higher for duplication than speciation events irrespective of the number of tips considered for the study. (C) Using the original $\\tau$ data, if we permute the events (Speciation/Duplication/NA) of the nodes, the trend of result still resembles the empirical result obtained by the recent study [@RN760]. (D) The proportions of speciation events are much higher than duplication events for all time-calibrated trees. The dotted line represents the median proportion of both events. This plot shows a high frequency of trees have no/few duplication events."}
 
@@ -679,6 +688,8 @@ To avoid calibration bias of older duplication events, we also considered a more
   
 ```
 
+
+
 Instead of using standard diagnostic plot tests [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816], Dunn et al. [@RN760] considered model-fitting criteria to identify BM trees from their list of `r length(gene_trees_calibrated)` calibrated trees. They contrasted the BM model (neutral drift model with no selection) to the Ornstein-Uhlenbeck (OU) model (i.e. an extended BM model with stabilizing selection) [@RN843;@RN841] for this purpose. After computing the difference in Akaike Information Criterion ($\Delta$AIC) [@RN380] scores of the models for each tree, they identified 3151 BM trees, out of which only 8 trees purely favored the BM model ($\Delta$AIC~BM~ < 2 and $\Delta$AIC~OU~ $\ge$ 2). The other 3143 trees favored both the BM and OU models ($\Delta$AIC~BM~ < 2 and $\Delta$AIC~OU~ < 2). A Wilcoxon two-tailed test on those 3151 trees provided similar results to the `r length(gene_trees_calibrated)` calibrated trees, i.e. higher $\tau$ evolution for orthologs than for paralogs (PIC~speciation~ = `r round(median(speciation_BM_pic),4)`, PIC~duplication~ = `r round(median(duplication_BM_pic), 4)`, *P* = $`r format(wilcox_two_tailed_BM, digits= 3, scientific = TRUE)`$). This result implies that selection of BM or non-BM trees does not explain these results. A similar trend was observed for the recent duplicates (node age $\le$ `r max(speciation_pic_nodeage)` My) (S9A Fig). The pattern of systematic increase of duplication PICs with node age (S10A Fig) plausibly implies that the evolution of $\tau$ does not in fact follow Brownian motion for these trees. Randomization tests on those trees (S10B and S10C Figs) confirmed that contrasts were not appropriately standardized as per BM, and thus the inference drawn on empirical data was not supported. When we performed diagnostic plot tests on those 3151 trees, we found support for the ortholog conjecture for `r length(BM_tree_diagnostic_test_final)` trees passing the diagnostic tests (S11 Fig). All these analyses suggest that Dunn et al. did not identify accurately BM trees, and that such misidentification leads to violating the assumptions of phylogenetic comparative methods, and to erroneous results.
 
 
@@ -704,6 +715,8 @@ Instead of using standard diagnostic plot tests [@RN781;@RN782;@RN779;@RN780;@RN
   p_tau_806 <- paste0("Two-tailed test, ", two_tailed_wilcox(duplication_pic_tau_806,speciation_pic_tau_806))
 
 ```
+
+
 
 
 ```{r Additional_analyses_on_806_BM_trees, eval=T, echo=F, message=F, warning=F}
@@ -784,7 +797,10 @@ Instead of using standard diagnostic plot tests [@RN781;@RN782;@RN779;@RN780;@RN
 ```
 
 
-### Discussion
+\pagebreak
+
+
+### Discussion    
 
 
 We agree with Dunn et al. [@RN760] that evolutionary comparisons should be done considering a phylogenetic framework when possible. However, this does not imply that phylogenetic independent contrasts can be applied easily to phylogenomics data and questions. To get a clear picture, we limited our study to the same phylogenetic gene trees used by Dunn et al. [@RN760]. Our reanalysis identified problems generated during the time calibration of duplication nodes of pruned trees for which no external time references are available, and with non respect of the hypothesis of Brownian motion. The strongest bias was for duplication nodes preceding the oldest speciation nodes. This, in turn, introduced several biases in their analyses, and influenced their results. When we identified and controlled for such biases, PIC results changed to support the ortholog conjecture, consistent with our previous pairwise approach [@RN762] on the same $\tau$ data.
@@ -798,7 +814,6 @@ The importance of proper BM tree selection should not be underestimated as it ca
 Empirical support for the ortholog conjecture has been mixed, with most studies supporting, and a few failing to do so  [@RN770;@RN790;@RN793;@RN794;@RN762]), our results provided support for the ortholog conjecture using large-scale genome wide tissue specificity data in a phylogenetic framework after controlling for bias. Due to lack of detailed functional information, many studies are still limited to gene expression data as a proxy of function. Recently, using functional replaceability assay, experimental studies [@RN857;@RN861] have shown that orthologous genes can be swapped between essential yeast genes and human, although this is rarely the case for all the members of expanded human gene families [@RN861], validating one prediction of the ortholog conjecture.
 
 These analyses are mainly based on gene trees dominated by small scale duplication events. In these trees, the age of the same duplication clade is never fixed. Use of time calibrated whole genome duplication trees could be beneficial in this regard. Since the approximate time period of whole genome duplications are known, we can test the hypothesis more conveniently by avoiding use of any node age limits on whole genome duplication events for those trees. 
-
 
 
 \pagebreak
@@ -892,6 +907,7 @@ sim_tau( tree, dup_adjust=2)
 ```
 
 
+
 ```{r Fig_S1, dpi=400,fig.width=8, fig.height=7, fig.cap= paste0("S1 Fig: Repeating simulations on all calibrated trees with different random seed number. *P* values are from Wilcoxon two-tailed tests. Simulations with different seed number did not change the trend of results as observed in Fig 1A.")}
 
   ## Dataframe is built based on 2896 trees with phylogenetic signals
@@ -940,6 +956,7 @@ sim_tau( tree, dup_adjust=2)
 ```
 
 
+
 ```{r More_analysis_trees_with_strong_phylogenetic_signal,eval=T, echo=F, message=F, warning=F}
  
   ## Removing null and OC simulation trees associated with negative branch lengths
@@ -977,6 +994,7 @@ sim_tau( tree, dup_adjust=2)
   wilcox_2_tailed_oc_1135 <- two_tailed_wilcox(speciation_oc_1135,duplication_oc_1135)
 
 ```
+
 
 
 ```{r Fig_S3, dpi=400,fig.width=8, fig.height=7, fig.cap= paste0("S3 Fig: Simulation analyses on 1135 trees with strong phylogenetic signals. *P* values are from Wilcoxon two-tailed tests. Dunn et al. used a cutoff of K > 0.551 to identify trees with strong phylogenetic signals. However, trees with higher K statistic can reflect trees with no phylogenetic signal when corresponding *P* values are non-significant. Considering both K statistic and *P* value, we found similar trends as was observed with 2082 trees.")}
@@ -1172,6 +1190,7 @@ sim_tau( tree, dup_adjust=2)
 ```
 
 
+
 ```{r Additional_analyses_on_2545_BM_trees, eval=T, echo=F, message=F, warning=F}
 
   ## Collecting tree data for all calibrated trees in a single tibble
@@ -1180,6 +1199,8 @@ sim_tau( tree, dup_adjust=2)
   
 
 ```
+
+
 
 
 ```{r Fig_S7, dpi=400,fig.width=8, fig.height=8, fig.cap="S7 Fig: Randomization test results on contrasts standardized 2545 BM trees for $\\tau$. Wilcoxon tests were used to generate *P* value distribution plots by 1000 independent runs with a node age limit of 296 My. (A) For randomized $\\tau$, Wilcoxon two-tailed tests unexpectedly showed all the values were significant. (B) *P* value of 1 in all cases of Wilcoxon one-tailed test (as performed in Dunn et al.) on randomized $\\tau$. This may be due to the fact that there is an excess proportions of speciation and NA events compared to the duplication events in these trees. By permuting $\\tau$, higher $\\tau$ values of duplication events are more likely to be assigned to the speciation and NA events. Hence, this produced higher speciation contrasts, although we controlled the bias in expected variance of older duplication events by node age limits. (C) and (D) Wilcoxon two-tailed and one-tailed tests were performed by randomization of events. After randomization, the smaller proportions of duplication events were more likely to be replaced by speciation and NA events, showing greater shifts towards excess speciation contrasts. These plots show that randomization results are different from the empirical results of Fig 3, as expected."}
