@@ -12,7 +12,7 @@ output:
   html_document:
     df_print: paged
   word_document:
-    reference_docx: Paper1_reply_v13_Tina_Marc.docx
+    reference_docx: Manuscript.docx
 urlcolor: blue
 fontsize: 10pt
 geometry: margin=1in
