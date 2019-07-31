@@ -1,7 +1,7 @@
 
 ### Brief Description 
 
-This repository contains files associated with our manuscript: "Phylogenetic comparative methods are problematic when applied to gene trees with speciation and duplication nodes: correcting for biases in testing the ortholog conjecture"
+This repository contains files associated with our manuscript: "Phylogenetic comparative methods are problematic when applied to gene trees with speciation and duplication nodes: correcting for biases in testing the ortholog conjecture".
 
 The files include:
 
