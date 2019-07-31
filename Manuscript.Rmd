@@ -567,7 +567,7 @@ Out of `r length(gene_trees_calibrated)` calibrated trees, `r trees_with_no_dupl
 ```
 
 
-__The ortholog conjecture when $\tau$ evolution follows a Brownian model __
+__The ortholog conjecture when $\tau$ evolution follows a Brownian model__
 
 
 ```{r Analysis_with_Caper_package_without_data_transformation, eval=T, echo=F, message=F, warning=F}
