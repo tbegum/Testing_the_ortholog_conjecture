@@ -309,7 +309,7 @@ The purpose of applying a phylogenetic method is to generate independent statist
 
 
 
-```{r Deatiled_analyses_on_empirical_data, echo=F, message=F, warning=F}
+```{r Detailed_analyses_on_empirical_data, echo=F, message=F, warning=F}
   
   ## Obtaining calibration time points for speciation and duplication events for empirical data
   speciation.empirical <- unique(round(as.integer(nodes_contrast$node_age[which(nodes_contrast$Event == "Speciation")]), 0))
@@ -734,7 +734,7 @@ Instead of using standard diagnostic plot tests [@RN781;@RN782;@RN779;@RN780;@RN
 
 
 
-```{r Fig4, dpi=400,fig.width=8, fig.height=8, fig.cap= paste0("**Fig 4**: Results on real and randomized data for ", length(standarized_pic_tree_ancient_speciation), " BM trees with ancient speciation events. *P* values are from  two-tailed Wilcoxon tests. (A) The jitter plot on empirical gene tree data supports the ortholog conjecture. Main plots in (B) and (C) show the distributions of two-tailed test *P* values estimated for the whole set of ", length(standarized_pic_tree_ancient_speciation), " BM trees by permuting $\\tau$ (B), and by permuting the internal node events (C) ('Speciation', 'Duplication', and 'NA') for 1000 independent runs respectively. Inset plots in (B) and (C) show *P* value distributions plots of one-tailed test to check if there was an excess of duplication contrasts over speciation contrasts by randomizing $\\tau$, and events respectively. The proportions of speciation (median = ", median_proporion_of_speciation, "), and NA events (median = ", median_proporion_of_NA_event, ") are much higher than that of duplication events (median = ", median_proporion_of_duplication, ") in these trees (S9 Fig). Hence, higher duplication contrasts are more likely to be replaced by speciation events by permutations of events. Due to this reason, we found significant shifts towards left in the main plot of C, and towards *P* value 1 in the inset plot of C to depict larger contrasts for speciation events. Comparisons of plot A to plot B, and plot A to plot C show that randomization results in both the cases actually differ from the empirical result.")}
+```{r Fig4, dpi=400,fig.width=8, fig.height=8, fig.cap= paste("**Fig 4**: Results on real and randomized data for ", length(standarized_pic_tree_ancient_speciation), " BM trees with ancient speciation events. *P* values are from  two-tailed Wilcoxon tests. (A) The jitter plot on empirical gene tree data supports the ortholog conjecture. Main plots in (B) and (C) show the distributions of two-tailed test *P* values estimated for the whole set of ", length(standarized_pic_tree_ancient_speciation), " BM trees by permuting $\\tau$ (B), and by permuting the internal node events (C) ('Speciation', 'Duplication', and 'NA') for 1000 independent runs respectively. Inset plots in (B) and (C) show *P* value distributions plots of one-tailed test to check if there was an excess of duplication contrasts over speciation contrasts by randomizing $\\tau$, and events respectively. The proportions of speciation (median = ", median_proporion_of_speciation, "), and NA events (median = ", median_proporion_of_NA_event, ") are much higher than that of duplication events (median = ", median_proporion_of_duplication, ") in these trees (S9 Fig). Hence, higher duplication contrasts are more likely to be replaced by speciation events by permutations of events. Due to this reason, we found significant shifts towards left in the main plot of C, and towards *P* value 1 in the inset plot of C to depict larger contrasts for speciation events. Comparisons of plot A to plot B, and plot A to plot C show that randomization results in both the cases actually differ from the empirical result.")}
 
 
   ## Jitter plot with empirical data
@@ -908,7 +908,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S1, dpi=400,fig.width=8, fig.height=7, fig.cap= paste0("S1 Fig: Repeating simulations on all calibrated trees with different random seed number. *P* values are from Wilcoxon two-tailed tests. Simulations with different seed number did not change the trend of results as observed in Fig 1A.")}
+```{r Fig_S1, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S1 Fig: Repeating simulations on all calibrated trees with different random seed number. *P* values are from Wilcoxon two-tailed tests. Simulations with different seed number did not change the trend of results as observed in Fig 1A.")}
 
   ## Dataframe is built based on 2896 trees with phylogenetic signals
   simulation_8520_new <- rbind(null_data_8520_new, OC_data_8520_new)
@@ -934,7 +934,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S2, dpi=400,fig.width=8, fig.height=6, fig.cap= paste0("S2 Fig: An example of a calibrated gene trees used by Dunn et al. in their study. The blue nodes represent the speciation nodes while the red nodes are duplication nodes. For nodes with no number the event is assigned as NA by the authors [@RN760]. Since, the duplication time is unknown, the tree is calibrated based on speciation node ages. Notice that this gives an unreasonably large estimated date for the ancient duplication, resulting in higher expected variance and abnormally low contrast for the corresponding node event. This example is to demonstrate that it is often risky to use such nodes to infer the result of phylogenetic method that intends to study the effect of gene duplication.")}
+```{r Fig_S2, dpi=400,fig.width=8, fig.height=6, fig.cap= paste("S2 Fig: An example of a calibrated gene trees used by Dunn et al. in their study. The blue nodes represent the speciation nodes while the red nodes are duplication nodes. For nodes with no number the event is assigned as NA by the authors [@RN760]. Since, the duplication time is unknown, the tree is calibrated based on speciation node ages. Notice that this gives an unreasonably large estimated date for the ancient duplication, resulting in higher expected variance and abnormally low contrast for the corresponding node event. This example is to demonstrate that it is often risky to use such nodes to infer the result of phylogenetic method that intends to study the effect of gene duplication.")}
 
   ## One example tree
   tree <- gene_trees_pic[[247]]
@@ -997,7 +997,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S3, dpi=400,fig.width=8, fig.height=7, fig.cap= paste0("S3 Fig: Simulation analyses on 1135 trees with strong phylogenetic signals. *P* values are from Wilcoxon two-tailed tests. Dunn et al. used a cutoff of K > 0.551 to identify trees with strong phylogenetic signals. However, trees with higher K statistic can reflect trees with no phylogenetic signal when corresponding *P* values are non-significant. Considering both K statistic and *P* value, we found similar trends as was observed with 2082 trees.")}
+```{r Fig_S3, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S3 Fig: Simulation analyses on 1135 trees with strong phylogenetic signals. *P* values are from Wilcoxon two-tailed tests. Dunn et al. used a cutoff of K > 0.551 to identify trees with strong phylogenetic signals. However, trees with higher K statistic can reflect trees with no phylogenetic signal when corresponding *P* values are non-significant. Considering both K statistic and *P* value, we found similar trends as was observed with 2082 trees.")}
 
   ## Dataframe is built based on 1135 trees with strong phylogenetic signals
   simulation_1135_new <- rbind(null_data.1135, OC_data.1135)
@@ -1023,7 +1023,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S4, dpi=400,fig.width=8, fig.height=7, fig.cap= paste0("S4 Fig: Re-analyses of expected variances of calibrated trees considered by Dunn et al. The expected variance plots of (A) all calibrated trees, and (B) trees with strong phylogenetic signal. The dotted line represents the mean expected variance of the events. These plots suggest that the use of duplication nodes preceding ancient speciation nodes for calibration is often erroneous and should be avoided.")}
+```{r Fig_S4, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S4 Fig: Re-analyses of expected variances of calibrated trees considered by Dunn et al. The expected variance plots of (A) all calibrated trees, and (B) trees with strong phylogenetic signal. The dotted line represents the mean expected variance of the events. These plots suggest that the use of duplication nodes preceding ancient speciation nodes for calibration is often erroneous and should be avoided.")}
 
     
   exp_var_tre <- paste0("A. Expected variance plot of ",length(gene_trees_calibrated), " trees", sep="")
@@ -1252,7 +1252,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S8, dpi=400,fig.width=8, fig.height=5, fig.cap=paste0("S8 Fig: Result on ", length(standarized_pic_tree_with_dup_final_new), " BM trees using maximum age of oldest duplication event as 370 My. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. With different node age limits (as used in Fig 3), we found support for the ortholog conjecture. The difference between S8 Fig and Fig 3 is that in Fig 3we used the PICs of all the old duplication nodes to identify BM trees, and then we used different node age limits to test the ortholog conjecture, whereas in S8 Fig we removed the old duplication nodes (duplication age > 370 My) before identifying BM trees, and tested for the ortholog conjecture with different node age limits.")}
+```{r Fig_S8, dpi=400,fig.width=8, fig.height=5, fig.cap=paste("S8 Fig: Result on ", length(standarized_pic_tree_with_dup_final_new), " BM trees using maximum age of oldest duplication event as 370 My. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. With different node age limits (as used in Fig 3), we found support for the ortholog conjecture. The difference between S8 Fig and Fig 3 is that in Fig 3we used the PICs of all the old duplication nodes to identify BM trees, and then we used different node age limits to test the ortholog conjecture, whereas in S8 Fig we removed the old duplication nodes (duplication age > 370 My) before identifying BM trees, and tested for the ortholog conjecture with different node age limits.")}
 
   ## Summerising the data slots of 2682 BM trees 
   summary_2682_BM_tree <- bind_rows(lapply(standarized_pic_tree_with_dup_final_new,summary_function))
@@ -1315,7 +1315,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S9, dpi=400,fig.width=8, fig.height=5, fig.cap=paste0("S9 Fig: Distribution of proportions of events in 806 BM trees. These trees have a median of ", median_number_of_events, " internal nodes. Most of the trees have speciation nodes whose descendants have the same clade name. Hence, Dunn et al. [@RN760] changed such nodes from speciation events to NA to avoid problem with tree calibration. From the figure, it is clear that the proportion of speciation events is much higher than that of the duplication events. For these trees, the proportions of NA events (median:  ", median_proporion_of_NA_event, ") are even higher than the proportion of duplication events (median: ",median_proporion_of_duplication,"). The dotted line represents the median proportions of the events.")}
+```{r Fig_S9, dpi=400,fig.width=8, fig.height=5, fig.cap=paste("S9 Fig: Distribution of proportions of events in 806 BM trees. These trees have a median of ", median_number_of_events, " internal nodes. Most of the trees have speciation nodes whose descendants have the same clade name. Hence, Dunn et al. [@RN760] changed such nodes from speciation events to NA to avoid problem with tree calibration. From the figure, it is clear that the proportion of speciation events is much higher than that of the duplication events. For these trees, the proportions of NA events (median:  ", median_proporion_of_NA_event, ") are even higher than the proportion of duplication events (median: ",median_proporion_of_duplication,"). The dotted line represents the median proportions of the events.")}
 
   ## Creating a dataframe for plotting the proportions of events
   df_806 <- data.frame(proportion_event=NA,Event=NA)
@@ -1453,7 +1453,7 @@ sim_tau( tree, dup_adjust=2)
 
 
 
-```{r Fig_S11, dpi=400,fig.width=8, fig.height=5, fig.cap= paste0("S11 Fig: The ortholog conjecture test on Dunn et al. identified BM trees, after diagnostic tests. Among 3151 trees, ", length(BM_tree_diagnostic_test_final), " trees passed the diagnostic tests of BM. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. We did not exclude pure speciation trees before the contrasts analyses. With node age limit (age $\\le$ 296 My) as well as without, we found support for the ortholog conjecture.")}
+```{r Fig_S11, dpi=400,fig.width=8, fig.height=5, fig.cap= paste("S11 Fig: The ortholog conjecture test on Dunn et al. identified BM trees, after diagnostic tests. Among 3151 trees, ", length(BM_tree_diagnostic_test_final), " trees passed the diagnostic tests of BM. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. We did not exclude pure speciation trees before the contrasts analyses. With node age limit (age $\\le$ 296 My) as well as without, we found support for the ortholog conjecture.")}
 
   ## summerising the results for newly identified BM trees 
   summary_new_BM_tree <- bind_rows(lapply(BM_tree_diagnostic_test_final,summary_function))
