@@ -350,7 +350,7 @@ The purpose of applying a phylogenetic method is to generate independent statist
 
 Dunn et al. [@RN760] used `r nrow(calibration_times_focal)` speciation time points to calibrate gene trees. The oldest speciation calibration was at `r max(calibration_times_focal$age)` My.  All other calibrated nodes were duplication nodes leading to obtain ~`r length(duplication.empirical)` unique duplication time points for the `r length(gene_trees_calibrated)` calibrated trees [@RN760]. Out of these, `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` time points preceded the oldest speciation node age. Surprisingly, the calibrated node age of the oldest duplication event was found to be `r as.integer(max(duplication.empirical))` My, that is, 2600 times older than the Earth. This is indicative of the difficulty of estimating the age of ancient duplications by phylogenetic methods. Those `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` high duplication node ages eventually led to much larger expected variances for gene duplication events (median expected variance for duplication events preceding the oldest speciation events: `r round(median(Exp_var.duplication.precede.speciation),0)`, median expected variance for speciation events: `r round(median(Exp_var.speciation),0)`). This explains why the mean paralog distance was ~`r round((paralog_distance_mean/ortholog_distance_mean),1)` times higher than that of the mean ortholog distance (S4A Fig). This data distribution also makes it appear as if no speciation happened before `r max(speciation.empirical)` My, a problem shared with the pairwise analysis of the same data [@RN762]. There are also branch length issues for duplication events younger than the oldest speciation events, including very short branches and negative branch lengths. All this led to obtain abnormally high duplication contrasts for the empirical data. To limit such problems, Dunn et al. [@RN760] removed node contrasts higher than 0.5 on the empirical data (this does not impact Fig 1, as the simulation data never has such high contrasts). Following this practice, there are still higher expected variances following gene duplication events (S4A and S4B Figs). In the null simulations only the $\tau$ values are simulated, while the branch lengths (hence the variances) are taken from the empirical data, and thus share its biases. This explains why contrasts are lower for duplications than for speciations under null simulations as well as with empirical data.
 
-\vspace{0.5cm}
+
 
 __Randomization tests to assess the performance of phylogenetic method__
 
@@ -566,7 +566,7 @@ Out of `r length(gene_trees_calibrated)` calibrated trees, `r trees_with_no_dupl
 
 ```
 
-\vspace{0.5cm}
+
 __The ortholog conjecture when $\tau$ evolution follows a Brownian model __
 
 
@@ -651,11 +651,15 @@ __The ortholog conjecture when $\tau$ evolution follows a Brownian model __
  
 ```
 
+
+
 Following a Brownian model (BM), the small and large values of standardized contrasts should be equally as likely to occur on any node of the tree [@RN783]. Diagnostic plot tests (details in the Methods) for each tree can indicate whether trait evolution follows BM for that tree [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816]. Since BM is intrinsic to the implementation of PIC method, we identified trees that passed diagnostic plot tests at 95% confidence level for $\tau$. Hence, we used a subset of `r length(standarized_pic_tree_with_dup_final)` gene trees by removing trees with negative branch lengths, pure speciation trees, and trees that failed diagnostic tests for BM (S6 Fig). Moreover, to meet the correct branch length assumption of PIC applicability on trees with gene duplications, we used limitations of node age on gene duplication. It is necessary to put such a limitation to avoid biases due to inaccurate calibration of very old duplication nodes. Analyses on `r length(standarized_pic_tree_with_dup_final)` these trees with a node age limit of `r max(speciation_pic_nodeage)` My (i.e. node age $\leq$ maximum speciation age), provided support for the ortholog conjecture (Fig 3), in contrast to previous results. We repeated the analysis including slightly older duplication events (duplication age $\leq$ `r round((max(speciation_pic_nodeage)+ 0.25*(max(speciation_pic_nodeage))),0)` My, i.e. maximum 25% older than the oldest speciation). We still were able to detect higher contrasts for duplication than for speciation (Fig 3). Finally, randomization tests on these trees indicated no bias in the inference (S7A-S7D Figs), supporting the relevance of the inferences on empirical data.
 
 Among these `r length(standarized_pic_tree_with_dup_final)` trees (S6 Fig), very old duplication node contrasts were also involved to identify contrast distribution of $\tau$ as per BM, which might bias the analysis. Hence, we repeated the identification of BM trees by standard diagnostic plot tests considering only `r length(trees_of_interest)` trees with at least one duplication event, after removing very old duplication nodes (duplication age > `r round((max(speciation_pic_nodeage)+ 0.25*(max(speciation_pic_nodeage))),0)` My) (S6 Fig). We still were able to find support for the ortholog conjecture on these identified `r length(standarized_pic_tree_with_dup_final_new)` BM trees (S8 Fig). 
 
 To avoid calibration bias of older duplication events, we also considered a more restricted set of `r length(standarized_pic_tree_ancient_speciation)` passing more strict conditions (S6 Fig), i.e. BM trees in which there is at least one duplication, and a speciation event older than all duplications. Calibration bias for duplication events is expected to be very limited for such trees. Support for the ortholog conjecture still holds with these `r length(standarized_pic_tree_ancient_speciation)` trees (Fig 4A). Randomization tests on these `r length(standarized_pic_tree_ancient_speciation)` trees also support the biological relevance of these results (Figs 4B and 4C,S9 Fig). These observations confirm that the ortholog conjecture is supported for adequately standardized BM trees.
+
+
 
 ```{r reanalyses_Dunn_data_BM_OU,echo=F, message=F, warning=F}
 
@@ -799,6 +803,7 @@ These analyses are mainly based on gene trees dominated by small scale duplicati
 
 \pagebreak
 
+
 ### Methods 
 
 
@@ -827,7 +832,9 @@ There exists no established protocol to identify the BM (Brownian model) trees. 
 
 We sincerely acknowledge Martha Liliano Serranno Serranno for initial help in understanding the phylogenetic independent contrast method. We thank Nicolas Salamin, Julien Wollbrett, Jialin Liu, Sebastien Moretti, Sara Fonseca Costa, Kamil Jaron and all the members of the Robinson-Rechavi group for their help and useful discussions. We also acknowledge Cassey Dunn for his initial help in reproducing their results. Parts of the computations were performed at the Vital-IT (http://www.vital-it.ch) Center for high-performance computing of the SIB Swiss Institute of Bioinformatics.
 
+
 \pagebreak
+
 
 ## Supporting Information
 
@@ -1221,6 +1228,7 @@ sim_tau( tree, dup_adjust=2)
  gridExtra::grid.arrange(plotS7AM,plotS7BM, plotS7CM,plotS7DM,nrow = 2,ncol=2) 
 
 ```
+
 
 
 ```{r Fig_S8, dpi=400,fig.width=8, fig.height=5, fig.cap=paste0("S8 Fig: Result on ", length(standarized_pic_tree_with_dup_final_new), " BM trees using maximum age of oldest duplication event as 370 My. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. With different node age limits (as used in Fig 3), we found support for the ortholog conjecture. The difference between S8 Fig and Fig 3 is that in Fig 3we used the PICs of all the old duplication nodes to identify BM trees, and then we used different node age limits to test the ortholog conjecture, whereas in S8 Fig we removed the old duplication nodes (duplication age > 370 My) before identifying BM trees, and tested for the ortholog conjecture with different node age limits.")}
