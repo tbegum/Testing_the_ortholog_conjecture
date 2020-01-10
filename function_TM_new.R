@@ -88,7 +88,7 @@ summary_function<-function(tree)
   return(tree@data)
 }
 
-## This function is aimed to summarize the randomized data of BM trees of Dunn et al.
+## This function is aimed to summarize the PIC based on randomized tau of BM trees of Dunn et al.
 summary_function_BM<-function(tree)
 {
   if(class(tree) == "treedata") 
@@ -101,6 +101,39 @@ summary_function_BM<-function(tree)
   gene_data$gene<-digest(tree)
   gene_data$pic<-abs(gene_data$pic_abs_random)
   tree@data<-gene_data[-c(4,5)]
+  return(tree@data)
+}
+
+## This function aimes to summarize the PIC data after branch length transformation
+summary_function_new<-function(tree)
+{
+  if(class(tree) == "treedata") 
+  {
+    tree@data <- tidytree::as_tibble(tree@data)
+  }
+  
+  ## Reading tree data slots
+  gene_data<-tree@data 
+  gene_data$gene<-digest(tree) ## Creating a unique hash to individual gene tree
+  gene_data$pic<-abs(gene_data$pic_transformed) ## Storing the absolute values of PIC
+  #gene_data$variance<-abs(gene_data$var_transformed)
+  tree@data<-gene_data[-c(4,5)] 
+  return(tree@data)
+}
+
+## This function aimes to summarize the PIC based on randomized tau data after branch length transformation
+summary_function_new2<-function(tree)
+{
+  if(class(tree) == "treedata") 
+  {
+    tree@data <- tidytree::as_tibble(tree@data)
+  }
+  
+  ## Reading tree data slots
+  gene_data<-tree@data 
+  gene_data$gene<-digest(tree) ## Creating a unique hash to individual gene tree
+  gene_data$pic<-abs(gene_data$pic_abs_random) ## Storing the absolute values of PIC
+  tree@data<-gene_data[-c(4,5)] 
   return(tree@data)
 }
 
@@ -474,6 +507,7 @@ jitter_plot_tau<-function(frame,df_median,pvalue)
     annotate("text", x = 1.5, y = 0.17, label= pvalue, fontface = 4)
 }
 
+
 ## This function is written to calculate the proportion of duplication, speciation and NA events for each tree
 tree_data_collection<-function(tree)
 {
@@ -635,4 +669,331 @@ ggplot2_histogram_mod<-function (data, xName = NULL, groupName = NULL, position 
   p <- ggplot2.customize(p, ...)
   p
 }
+
+## This function generates a dataframe with median data
+median_df<-function(Frame)
+{
+  median_data<-Frame %>% 
+  group_by(Event) %>% 
+  summarise(Median=median(pic),
+            count=n())
+  median_data$pic.round<-paste0(round(median_data$Median,4))
+  return(median_data)
+}
+
+## This function is written to generate dataframe for plotting
+plot_frame<-function(dataframe,estimate,type)
+{
+  plot_df <- data.frame(pic=NA,group=NA, Event=NA) ## declaring data frame
+  
+  if(type=="type1" && estimate=="pic_Tau")
+  {
+    plot_df <- rbind(plot_df, data.frame(pic=abs(dataframe$pic_Tau), group="Age <= 296 My", Event=dataframe$Event))
+  }
+  if(type=="type2" && estimate=="pic")
+  {
+    plot_df <- rbind(plot_df, data.frame(pic=abs(dataframe$pic), group="No age limit", Event=dataframe$Event))
+  }
+  
+  plot_df <- plot_df[-1,]
+  plot_df$Event <- factor(plot_df$Event, levels=c("Speciation", "Duplication"))
+  return(plot_df)
+}
+
+## This function is written to generate boxplots
+boxplot_new<-function(dataframe,pval,med,type)
+{
+  dodge <- position_dodge(width = 0.51)
+  
+  if(type=="type1") ## "type1" to notify without branch length transformation
+  {
+    plot<-ggplot(dataframe,aes(x=group, y=pic, fill=Event ) ) + 
+      guides( colour = guide_legend( override.aes = list( shape = 16 ) ) ) +
+      geom_boxplot( width=0.5,outlier.colour=NA, position = dodge, notch = T) +
+      xlab( NULL ) +
+      ylab(expression(bold(paste("PICs of ",tau)))) +
+      coord_cartesian(ylim=c(0, 0.05)) +
+      theme_classic()+
+      theme(legend.title=element_blank(),legend.position=c(0.9,0.9)) +
+      theme(axis.text=element_text(size=10,face="bold")) +
+      theme(legend.text=element_text(size=10,face="bold"))+
+      theme(plot.title = element_text(face = "bold"))+
+      annotate("text", x = 1.00, y = 0.04, label= pval, fontface = 4)
+     # annotate("text", x=0.87, y=0.01, label=med$pic.round[1], fontface=2)+
+    #  annotate("text", x=1.13, y=0.01, label=med$pic.round[2], fontface=2)
+    return(plot)
+  }
+  
+  if(type=="type2") ## "type2" to notify branch length transformation
+  {
+    plot<-ggplot(dataframe,aes(x=group, y=pic, fill=Event ) ) + 
+      guides( colour = guide_legend( override.aes = list( shape = 16 ) ) ) +
+      geom_boxplot( width=0.5,outlier.colour=NA, position = dodge, notch = T) +
+      xlab( NULL ) +
+      ylab(expression(bold(paste("PICs of ",tau)))) +
+      coord_cartesian(ylim=c(0, 0.2)) +
+      theme_classic()+
+      theme(legend.title=element_blank(),legend.position=c(0.9,0.9)) +
+      theme(axis.text=element_text(size=10,face="bold")) +
+      theme(legend.text=element_text(size=10,face="bold"))+
+      theme(plot.title = element_text(face = "bold"))+ 
+      annotate("text", x = 1.00, y = 0.15, label= pval, fontface = 4)
+     #annotate("text", x=0.87, y=0.04, label=med$pic.round[1], fontface=2)+
+      #annotate("text", x=1.13, y=0.04, label=med$pic.round[2], fontface=2)
+    return(plot)
+  }
+}
+
+#This function calculates Phylogenetic indepent contrast for trees with branch transformed
+contrast_br_transformed<-function(tree1)
+{
+  
+  ## Tree data
+  gtree<-tree1@phylo
+  gdata<-tree1@data
+  
+  tree1@phylo$edge.length<-tree1@phylo$edge.length.new
+  
+  if(class(tree1) == "treedata") 
+  {
+    tree1@data <- tidytree::as_tibble(tree1@data)
+  }
+  
+  ## Collecting tip data 
+  Tau_tip<-tree1@data$Tau[which(is.na(tree1@data$pic))]
+
+  ## Calculating the phylogenetic independent contrasts of tree
+  ## Returning the results to "data" frame of the tree 
+  pic_tree <- ape::pic(Tau_tip, tree1@phylo, var.contrasts=TRUE)
+  
+  absolute_pic <- abs(pic_tree[,1]) ## absolute PIC values
+  
+  ##Returning the contrast value
+  tree1@data$pic_transformed <-c(rep(NA, length(gtree$tip.label)), absolute_pic)
+  tree1@data$var_transformed <- c(rep(NA, length(gtree$tip.label)), pic_tree[,2])
+  
+  return(tree1)
+}
+
+## This function is written to transform the branch length of the trees
+branch_transform<-function(tree)
+{
+  ct<<-ct+1
+  print(ct)
+  ##Collecting gene tree and their edge length
+  gene_tree<-tree@phylo
+  gene_data<-tree@data
+  gene_tree$edge.length[which(gene_tree$edge.length <= 1)] <- 1 
+  edge_length<-gene_tree$edge.length
+  ntips <-length(gene_tree$tip.label)
+  scale<-0 ## initializing scaling for each tree
+  
+  if(class(tree) == "treedata") 
+  {
+    tree@data <- tidytree::as_tibble(tree@data)
+  }
+  ## Collecting the initial pic data in a different variable name
+  tree@data$pic_transformed<-NULL
+  tree@data$var_transformed<-NULL
+  
+  ## Transforming the branch length
+  tree@phylo$edge.length.new<-log(edge_length,10)+edge_length**scale
+  
+  ##Next we compute the contrast with the transformed tree
+  transformed_tree<-contrast_br_transformed(tree)
+  
+  if(ntips >= 3)
+  {
+    ## Next we perform the diagnostic test to see the correlation between node age and standarized pic
+    ## If we expect to find no significant pattern
+    new_tree<-transformed_tree@phylo 
+    new_data<-transformed_tree@data
+    
+    ## Calculating the correlation between absolute pic and node age
+    abs_pic<-new_data$pic_transformed[which(!is.na(new_data$pic))]
+    var<-new_data$var_transformed[which(!is.na(new_data$pic))]
+    varr<-sqrt(var)
+    group<-new_data$Event[which(!is.na(new_data$pic))]
+    
+    ## Performing correlation if all the abs_pic is not 0
+    length_pic<-length(abs_pic)
+    length_pic_zero <-length(abs_pic[abs_pic==0])
+    if(length_pic == length_pic_zero)
+    {
+      return(transformed_tree)
+    }
+    else
+    {
+      #p.SD<-cor.test(abs_pic,varr)$p.value
+      var.sd<-summary(lm(abs_pic~varr))
+      p.SD<-var.sd$coefficients[2,4]
+      
+      
+      ## If no pattern found the tree is returned
+      if(p.SD > 0.05) 
+      {
+        print(paste0("passed:",scale))
+        return(transformed_tree)
+      }
+      
+      ## If the p.value is still significant we performed recursive transformtion
+      if(p.SD <= 0.05) 
+      {
+        if(scale < 2)
+        {
+          scale<-scale + 0.1
+          print(paste0("scale:",scale))
+          recursive_transformation(tree,scale)
+        }
+        else
+        {
+          return(NA)
+        }
+      }
+    }
+  }
+  else
+  {
+    return(NA)
+  }
+}
+
+
+##This function is created to work for recursive branch length transformation
+recursive_transformation <- function(phy,scalelimit)
+{
+  ##Collecting gene tree and their edge length
+  data_tree<-phy@phylo
+  data_edge_length<-data_tree$edge.length
+  data_edge_length[which(data_edge_length <= 1)] <- 1
+  
+  ## Transforming the branch length
+  phy@phylo$edge.length.new<-log(data_edge_length,10)+data_edge_length**scalelimit
+
+  ## Collecting the initial pic data in a different variable name
+  phy@data$pic_transformed<-NULL
+  phy@data$var_transformed<-NULL
+  
+  ##Next we compute the contrast with the transformed tree
+  transformed_tree_new<-contrast_br_transformed(phy)
+  
+  ## Next we perform the diagnostic test to see the correlation between node age and standarized pic
+  ## If we expect to find no significant pattern
+  new_tree<-transformed_tree_new@phylo 
+  new_data<-transformed_tree_new@data
+  
+  ## Calculating the correlation between absolute pic and node age
+  pic<-new_data$pic_transformed[which(!is.na(new_data$pic))]
+  var_sqrt<-sqrt(new_data$var_transformed[which(!is.na(new_data$pic))])
+  group.new<-new_data$Event[which(!is.na(new_data$pic))]
+  
+  ## Performing correlation
+  var.sd.new<-summary(lm(pic~var_sqrt))
+  p.sd<-var.sd.new$coefficients[2,4]
+  
+  ## If no pattern found the tree is returned
+  if(p.sd > 0.05) 
+  {
+    print(paste0("passed recur:",scalelimit))
+    return(transformed_tree_new)
+  }
+  
+  ## If the p.value is still significant we performed recursive transformtion
+  if(p.sd <= 0.05) 
+  {
+    if(scalelimit <= 2)
+    {
+      print(paste0("scale:",scalelimit))
+      scalelimit<-scalelimit + 0.1
+      recursive_transformation(phy,scalelimit)
+    }
+  }
+}
+
+
+##This function is written to generate dataframe summarizing pic after branch length transformation
+summary_br_transformed<-function(treelist,Event)
+{
+  summ <- bind_rows(lapply(treelist,summary_function_new))
+  summ_tre1 <- summ[which(!is.na(summ$pic)),]
+  summ_new <-summ_tre1[!is.na(summ_tre1[[Event]]),]
+  #summ_new<-summ_new[summ_new$pic <= 0.5,]
+  summ_new$Event <- factor(summ_new[[Event]], levels=c("Speciation", "Duplication"))
+  return(summ_new)
+}
+
+##This function is written to generate dataframe summarizing pic after branch length transformation
+summary_br_transformed_rtau<-function(treelist,Event)
+{
+  summ <- bind_rows(lapply(treelist,summary_function_new2))
+  summ_tre1 <- summ[which(!is.na(summ$pic)),]
+  summ_new <-summ_tre1[!is.na(summ_tre1[[Event]]),]
+  #summ_new<-summ_new[summ_new$pic <= 0.5,]
+  summ_new$Event <- factor(summ_new[[Event]], levels=c("Speciation", "Duplication"))
+  return(summ_new)
+}
+
+##This function is written to find out P value difference in contrasts after branchlength transformation
+
+Wilcoxon_2_sided_br_transform<-function(dataframe)
+{
+  speciation_contrast_tau <- abs(speciation_contrast(dataframe,"pic"))
+  duplication_contrast_tau <-  abs(duplication_contrast(dataframe,"pic"))
+
+  ## Performing test 
+  wilcox_test_tau_br_transformed <- two_tailed_wilcox(duplication_contrast_tau,speciation_contrast_tau)
+  return(wilcox_test_tau_br_transformed)
+}
+
+## This function add information about dichotomous and polytomous tree
+test_polytomy<-function(tree)
+{
+  gene_tree<-tree@phylo
+  
+  ## Calculating the number of tips and node data
+  ntips<-length(gene_tree$tip.label)
+  nnode<-gene_tree$Nnode
+  
+  ## Adding information to the @data slot
+  tibble(
+    gene_tree=digest(tree),
+    information_tree=ifelse(nnode != (ntips-1), "polytomous","dichotomous"),
+    tips_number = ntips
+  )
+}
+
+### This function is written to perform shuffling of internal node events of the trees
+shuffling_event_new<-function(tree)
+{
+  ## Reading phylo and data slots of a tree
+  gene_tree<-tree@phylo
+  gene_data<-tree@data
+  Internal_node<-gene_data$node[which(!is.na(gene_data$pic_transformed))]
+  
+  if (class(tree) == "treedata") 
+  {
+    tree@data <- tidytree::as_tibble(tree@data)
+  }
+  
+  ## Collecting internal node event data and permuting the events
+  event_tree<-gene_data$Event[which(!is.na(gene_data$pic_transformed))]
+  events_new<-sample(x=event_tree, size = length(event_tree), replace = FALSE )
+  Internal_new_event<-as.character(events_new)
+  
+  ## Returning the data slot by adding the permuted internal node events data
+  tree@data$Event<-NULL
+  tree@data$Event<- c(rep(NA,time=length(gene_tree$tip.label)),Internal_new_event)
+  return(tree)
+}
+
+##This function is written to recalculate node depth after lambda rescaling of tree
+tree_nodedepth <- function(tree)
+{
+  gene_tree <- tree@phylo
+  ##Computing node depth and returned it to the tree into "@data" slot
+  nodedepth <- ape::node.depth(gene_tree, method = 1)
+  tree@data$node_depth<-nodedepth
+  return(tree)
+}
+
 
