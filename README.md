@@ -15,6 +15,4 @@ functions_Dunn.R - The script adopted from Dunn et al. and renamed. The script c
 
 funtion_TM_new.R - Additional script of functions written for our analysis.
 
-functions_Dunn.R - The script adopted from Dunn et al. and renamed. The script contains functions, which were used to reproduce the result of Dunn et al.
-
 plos.csl - CSL style used in our Manuscript.Rmd file.
