@@ -192,7 +192,7 @@ standarized_pic_tree_with_dup_final_new<-standarized_pic_tree_with_dup_final_new
 ##To get rid of bias due to calibration of old duplication nodes preceeding ancient speciation event, 
 ## We kept only trees where all duplication events are more recent than the oldest speciation event
 ## Hence, we chose trees with root event as "Speciation" 
- root_speciation_tree<-lapply(trees_of_interest,
+root_speciation_tree<-lapply(trees_of_interest,
                       function(tree){
                       gene_data<-tree@data
                       tip_number<-tree@phylo$Nnode+1
@@ -456,6 +456,9 @@ for(i in 1:run)
 
 
 ###################### Diagnostic tests on BM trees of Dunn et al. #########################
+tree_summary$index <- as.numeric(rownames(tree_summary))
+genes_pass_BM <- tree_summary$index[tree_summary$dAIC_bm < 2]
+BM_trees_model_fit <- gene_trees_pic[c(genes_pass_BM)]
 
 # Adding node height before analysis on BM trees of Dunn et al.
 BM_trees_model_fit<-mclapply(BM_trees_model_fit,tree_height,mc.cores=cores)
@@ -463,8 +466,55 @@ BM_trees_model_fit<-mclapply(BM_trees_model_fit,tree_height,mc.cores=cores)
 # Diagnostic tests
 count<-0
 BM_tree_diagnostic_test<-lapply(BM_trees_model_fit, diagnostic_plot_test_excluding_oldest_dup_nodes, 0) ## with no node age limits
-BM_tree_diagnostic_test1<-BM_tree_diagnostic_test[!is.na(BM_tree_diagnostic_test)] 
-BM_tree_diagnostic_test_final<-BM_tree_diagnostic_test1[ ! sapply(BM_tree_diagnostic_test1, is.null) ]## finally we obtained 2412 tree data passing the diagnostic test
+BM_tree_diagnostic_test1<-BM_tree_diagnostic_test[ ! sapply(BM_tree_diagnostic_test, is.null) ] 
+BM_tree_diagnostic_test_final<-BM_tree_diagnostic_test1[!is.na(BM_tree_diagnostic_test1)]## finally we obtained 2412 tree data passing the diagnostic test
+
 #save.image("BM_trees_for_tau1.rda")
 #save.image("Data_TMRR.rda")
+
+
+######################## Branch length transformation data for all sets of trees #################################
+
+## Adding nodeheight to the sets of trees
+standarized_pic_tree_with_dup_final<-mclapply(standarized_pic_tree_with_dup_final,tree_height,mc.cores=cores) ## list of 2545 trees passed diagnostis tests
+trees_new<-mclapply(trees_new,tree_height,mc.cores=cores) ## list of 2082 trees with strong phylogenetic signals
+gene_trees_pic<-mclapply(gene_trees_pic,tree_height,mc.cores=cores) ## list of 8520 calibrated trees
+root_speciation_tree<- mclapply(root_speciation_tree,tree_height,mc.cores=cores) ## 1263 trees where duplication events are mre recent than speciation events
+
+## branchlength transformation to the sets of trees
+ct<-0
+standarized_pic_tree_with_dup_br_trans<-lapply(standarized_pic_tree_with_dup_final,branch_transform)
+standarized_pic_tree_with_dup_br_trans_new1<-standarized_pic_tree_with_dup_br_trans[ ! sapply(standarized_pic_tree_with_dup_br_trans, is.null) ]
+standarized_pic_tree_with_dup_br_transformed<-standarized_pic_tree_with_dup_br_trans_new1[!is.na(standarized_pic_tree_with_dup_br_trans_new1) ] ## list of 2545 trees passed branch tranformation and diagnostis tests
+
+ct<-0
+trees_new_br_trans<-lapply(trees_new,branch_transform)
+trees_new_br_trans_new1<-trees_new_br_trans[ ! sapply(trees_new_br_trans, is.null) ]
+trees_new_br_transformed<-trees_new_br_trans_new1[!is.na(trees_new_br_trans_new1) ] ## list of 2080 trees passed branch tranformation and diagnostis tests
+
+ct<-0
+gene_trees_pic_br_trans<-lapply(gene_trees_pic,branch_transform)
+gene_trees_pic_br_trans_new1<-gene_trees_pic_br_trans[ ! sapply(gene_trees_pic_br_trans, is.null) ]
+gene_trees_pic_br_ransformed<-gene_trees_pic_br_trans_new1[!is.na(gene_trees_pic_br_trans_new1) ] ## list of 8417 trees passed branch tranformation and diagnostis tests
+
+ct<-0
+root_speciation_tree_br_trans<-lapply(standarized_pic_tree_ancient_speciation,branch_transform)
+root_speciation_tree_br_trans_new1<-root_speciation_tree_br_trans[ ! sapply(root_speciation_tree_br_trans, is.null) ]
+root_speciation_tree_br_transformed<-root_speciation_tree_br_trans_new1[!is.na(root_speciation_tree_br_trans_new1) ] ## list of 806 trees passed branch tranformation and diagnostis tests
+
+ct<-0
+BM_tree_diagnostic_test_final_br_trans<-lapply(BM_tree_diagnostic_test_final,branch_transform)
+BM_tree_diagnostic_test_final_br_trans_new1<-BM_tree_diagnostic_test_final_br_trans[ ! sapply(BM_tree_diagnostic_test_final_br_trans, is.null) ]
+BM_tree_diagnostic_test_final_br_transformed<-BM_tree_diagnostic_test_final_br_trans_new1[!is.na(BM_tree_diagnostic_test_final_br_trans_new1) ] ## list of 2412 BM trees passed branch tranformation and diagnostis tests
+
+ct<-0
+BM_tree_all_br_trans<-lapply(BM_trees_model_fit,branch_transform)
+BM_tree_all_br_trans_new1<-BM_tree_all_br_trans[ ! sapply(BM_tree_all_br_trans, is.null) ]
+BM_tree_all_br_transformed<-BM_tree_all_br_trans_new1[!is.na(BM_tree_all_br_trans_new1) ] ## list of 3144 BM trees passed branch tranformation and diagnostis tests
+
+save.image("Data_TMRR_latest.rda")
+
+
+
+
 
