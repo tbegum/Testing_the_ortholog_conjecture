@@ -1,0 +1,1771 @@
+---
+title: 
+author: Tina & Marc
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_notebook:
+    fig_caption: yes
+    keep_tex: yes
+    highlight: espresso
+    number_sections: no
+  html_document:
+    df_print: paged
+  word_document:
+    reference_docx: 
+urlcolor: blue
+fontsize: 10pt
+geometry: margin=1in
+editor_options:
+  chunk_output_type: console
+header-includes:
+- \usepackage{caption}
+- \captionsetup[figure]{labelformat=empty}
+- \usepackage{float}
+- \usepackage{color}
+linestretch: 1
+bibliography: /Users/admin/Desktop/nwork/simulation/TM.bib
+csl: /Users/admin/Desktop/nwork/simulation/styles-master/styles-master/plos.csl 
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+
+```{r setup, include=FALSE}
+  knitr::opts_chunk$set(echo = FALSE,message=FALSE, warning=FALSE, dev="png",dpi = 400,cache = TRUE)
+```
+
+
+```{r Initial settings, echo=F, message=F, warning=F}
+  # The following libraries should be installed from github with the specified 
+	# devtools command. One needs to install devtools first.
+	library(treeio)#devtools::install_github("GuangchuangYu/treeio")
+  library(ggtree)#devtools::install_github("GuangchuangYu/ggtree")
+  library(easyGgplot2) #install_github("kassambara/easyGgplot2")
+
+	# The following libraries can be installed from CRAN by using  
+  #install.packages("packagename")
+  library(geiger)
+  library(ape)
+  library(phytools)
+  library(stringr)
+  library(ggrepel)
+  library(dplyr)
+  library(ggplot2)
+  library(gridExtra)
+  library(parallel)
+  library(digest)
+  library(magrittr)
+  library(gtools)
+  library(tidyverse)
+  library(caper)
+  library(foreach)
+  library(doParallel)
+  library(cowplot)
+  library(png)
+  library(grid)
+  
+
+  ## Setting the working directory 
+  setwd("/Users/admin/Desktop/nwork/simulation/")
+  set.seed(23456)
+  
+  ## Renamed original function file provided by Dunn et al. (doi:10.1073/pnas.1707515115)
+  source("functions_Dunn.R")
+  
+  ## Additional functions written for this study
+  source( "/Users/admin/Desktop/nwork/Empirical/protein_trees.nhx/function_TM_new.R" )
+  
+  ## Setting system computational parameter
+	cores = detectCores()
+
+```
+
+
+\vspace{0.5cm}            
+
+# **Phylogenetic comparative methods are problematic when applied to gene trees with speciation and duplication nodes: correcting for biases in testing the ortholog conjecture** 
+
+\vspace{0.5cm}
+Tina Begum^1,2^, Marc Robinson-Rechavi^1,2^*         
+
+\vspace{0.5cm}
+
+^1^Department of Ecology and Evolution, University of Lausanne, Lausanne, Switzerland<br />      
+^2^SIB Swiss Institute of Bioinformatics, Lausanne, Switzerland <br />
+
+\vspace{0.5cm}  
+
+\*Corresponding author  
+E-mail: marc.robinson-rechavi@unil.ch
+
+
+### Abstract
+
+Most comparative studies of functional genomics have used pairwise comparisons. Yet it has been shown that this can provide biased results, since genes, like species, are phylogenetically related. Phylogenetic comparative methods should allow to correct for this, but they depend on strong assumptions, including unbiased tree estimates relative to the hypothesis being tested. Such methods have recently been used to test the "ortholog conjecture", the hypothesis that functional evolution is faster in paralogs than in orthologs. Whereas pairwise comparisons of tissue specificity index ($\tau$) provided support for the ortholog conjecture, phylogenetic independent contrasts did not. We find that the gene trees used suffer from important biases, due to the inclusion of trees with no duplication nodes, to the relative age of speciations and duplications, to systematic differences in branch lengths, and to non-Brownian motion of tissue-specificity on many trees. We find some support for the ortholog conjecture, but especially that incorrect implementation of phylogenetic method in empirical gene trees with duplications can be problematic.  
+
+### Author Summary
+
+There is a lot of interest in understanding the evolution of gene function. Comparing functional genomics results offers a way to do this. In most cases, it is done by comparing pairs of genes, and notably pairs of orthologs (homologs derived by speciation) and pairs of paralogs (homologs derived by duplication). A drawback of such pairwise comparisons is that they neglect the evolutionary history of the genes, and thus violate the statistical presumption of independence of observations. Phylogenetic comparative methods have been suggested to correct for this. Recent results indicate that whereas pairwise comparisons support functional divergence of paralogs than of orthologs, phylogenetic analyses would not. Re-analyses of these data show that gene trees are biased in such a way as to cause biases in phylogenetic methods when there are gene duplication. This can led to erroneous results, and have serious consequences in biological data interpretation.
+
+\pagebreak
+
+
+### Introduction 
+
+The "ortholog conjecture", a standard model of phylogenomics, has become a topic of debate in recent years [@RN771;@RN774;@RN790;@RN793;@RN794;@RN762;@RN760;@RN770;@RN792;@RN870]. Dealing with the roles of gene duplications in functional evolution, the ortholog conjecture is routinely used by both experimental and computational biologists in predicting or understanding gene function. According to this model, orthologs (i.e. homologous genes which diverged by a speciation event) retain equivalent or very similar functions, whereas paralogs (i.e. homologous genes which diverged by a duplication event) share less similar functions  [@RN771]. This is linked to the hypothesis that paralogs evolve more rapidly. This hypothesis was challenged by results suggesting that paralogs would be functionally more similar than orthologs [@RN774]. Such findings not only raised questions on the evolutionary role of gene duplication but also questioned the reliability of using orthologs to annotate unknown gene functions in different species [@RN844]. Several more recent studies [@RN790;@RN793;@RN794;@RN762] found support for the ortholog conjecture, mostly based on comparisons of gene expression data. 
+
+\vspace{0.05cm}
+While all previous studies of the ortholog conjecture had used pairwise comparisons of orthologs and paralogs, a recent article suggested that this was flawed, and that phylogenetic comparative methods should be used [@RN760]. Ignorance of phylogenetic structure has been reported to underestimate the fundamental assumption of independent observations in statistics [@RN807]. A solution is to use phylogeny-based methods to investigate such evolutionary patterns [@RN782;@RN807;@RN779;@RN780;@RN850;@RN849]. There are three main such phylogenetic methods: Phylogenetic Independent Contrast (PIC) [@RN807], Phylogenetic Generalized Least-Square (PGLS) [@RN850], and Monte Carlo computer simulation [@RN849]. PIC is widely adopted for its relative simplicity, and its applicability to a wide range of statistical procedures [@RN781;@RN760]. The performance of PIC relies on three basic assumptions: a correct tree topology; accurate branch lengths; and trait evolution following a Brownian model (where trait variance accrues as a linear function of time) [@RN781;@RN782;@RN783;@RN807;@RN780;@RN779;@RN816]. If any of these assumptions is incorrect, this can lead to incorrect interpretation of results. Dunn et al. [@RN760] took an innovative approach in applying PIC to compare the divergence rates between two different events ("speciation" and "duplication") to test the ortholog conjecture, and performed extensive analyses in support of their results. However, such an application might be problematic since the time of occurrence of gene duplication, one of the two types of events compared, is unknowable by external information (e.g. no fossil evidence). Therefore, further study is required to understand why Dunn et al. [@RN760] obtained results, which are inconsistent with previous studies. It is possible that all the conclusions drawn by previous studies on gene duplication are incorrect due to overlooking phylogenetic tree structure. If so, it should be well supported.
+
+ 
+\vspace{0.05cm}
+We re-examined the data of Dunn et al., after reproducing their results using the resources and scripts provided by the authors [@RN760]. Our reanalysis highlights potential problems associated with phylogenetic independent contrasts when applied to the impact of gene duplication. Finally, with proper controls, the phylogenetic method supports the ortholog conjecture on the data used by Dunn et al.
+
+### Results
+
+
+```{r load_Dunn_data, echo=F, cache=T, message=F, warning=F}
+  ## Loaded the analysis results generated by using files and scripts ("manuscript_kernel.R") of Dunn et al.
+  ## Files and scripts are used from the link  https://github.com/caseywdunn/comparative_expression_2017
+  ## We provided the following link https://doi.org/10.5281/zenodo.3354285 to make available the reproduced results of Dunn et al. to save time
+	load("/Users/admin/Desktop/nwork/simulation/manuscript_dunn.RData") 
+
+  ## Obtaining calibrated trees with no duplication event
+  gene_trees_with_duplication1<-mclapply(gene_trees_calibrated,tree_with_duplication, mc.cores = cores)
+  gene_trees_with_duplication<-gene_trees_with_duplication1[!is.na(gene_trees_with_duplication1)] 
+	trees_with_no_duplication <- length(gene_trees_calibrated) - length(gene_trees_with_duplication)
+	
+	## Retrieving speciation and duplication PICs for empirical data of Dunn et al.
+  speciation_empirical <- nodes_contrast$pic[which(nodes_contrast$Event=="Speciation" & nodes_contrast$pic < 0.5)]
+  duplication_empirical <- nodes_contrast$pic[which(nodes_contrast$Event=="Duplication" & nodes_contrast$pic < 0.5)] ## for them
+  
+   ## Performing two sided Wilcoxon test on empirical data 
+  wilcox_two_tailed_empirical <- two_tailed_wilcox(speciation_empirical,duplication_empirical)
+
+```
+
+
+
+__Issues with naive application of Phylogenetic Independent Contrasts (PICs)__
+
+
+```{r reanalyses_Dunn_data,echo=F, message=F, warning=F}
+  ## Dunn et al. replaced the actual Tau values with simulated Tau values (for null and OC simulation) on the calibrated trees 
+  ## and returned as treeio::treedata objects, and we used those data for our reanalyses
+  ## Creating dataframes of null and OC (Ortholog Conjecture) simulation data using columns of events and PICs  
+  null_data.dunn <- NULL
+  OC_data.dunn <- NULL
+  null_data.dunn <- na.omit(nodes_sim_null_contrast[c(7,21)])
+  null_data.dunn$label <- "Null simulation"
+  OC_data.dunn <- na.omit(nodes_sim_oc_contrast[c(7,21)])
+  OC_data.dunn$label <- "OC simulation"
+  
+  ## Retrieving speciation and duplication PICs of null and OC simulation data of Dunn et al.
+  speciation_null <- null_data.dunn$pic[which(null_data.dunn$Event=="Speciation")]
+  duplication_null <- null_data.dunn$pic[which(null_data.dunn$Event=="Duplication")]
+  speciation_oc <- OC_data.dunn$pic[which(OC_data.dunn$Event=="Speciation")]
+  duplication_oc <- OC_data.dunn$pic[which(OC_data.dunn$Event=="Duplication")]
+  
+  ## Performing Wilcoxon tests on null simulation data 
+  wilcox_one_tailed1 <- wilcox.test(duplication_null,speciation_null,alternative = "greater")$p.value
+  wilcox_one_tailed2 <- wilcox.test(speciation_null,duplication_null,alternative = "greater")$p.value
+  wilcox_two_tailed_null <- two_tailed_wilcox(speciation_null,duplication_null)
+  
+  ## Performing two sided Wilcoxon test on OC simulation data 
+  wilcox_two_tailed_oc <- two_tailed_wilcox(speciation_oc,duplication_oc)
+  
+```
+
+Many studies of functional evolution following gene duplication have used a pairwise approach [@RN762;@RN771;@RN790;@RN793;@RN794;@RN774]. All such pairwise studies, except two [@RN774; @RN870], have supported the ortholog conjecture [@RN762;@RN771;@RN790;@RN793;@RN794]. In this context, Dunn et al. [@RN760] have made a relevant argument that the test should be done in a phylogenetic framework, since closely related species or genes tend to share more similar traits. Parsing empirical gene trees from ENSEMBL Compara v.75, using the tissue-specificity data ($\tau$) from [@RN762] as the phenotypic trait for 8 vertebrate species, and applying PIC, they reported evidence in contradiction with the ortholog conjecture [@RN760]. To understand the incongruence between results of PIC and of pairwise methods, they performed simulations of $\tau$ on their `r length(gene_trees_calibrated)` time calibrated trees under the OC (ortholog conjecture), and under a null of uniform Brownian motion. Under the null simulation, the same trait evolutionary rate is used for speciation and duplication events ($\sigma$^2^~$\tau$-duplication~ = $\sigma$^2^~$\tau$-speciation~), thus the phylogenetic contrasts or pairwise correlations of different events should be drawn from the same distribution. For the OC simulation, a higher rate of trait evolution is applied following gene duplication relative to speciation; they used $\sigma$^2^~$\tau$-duplication~ = 2 \*  $\sigma$^2^~$\tau$-speciation~. Under OC, for PIC we expect higher duplication contrasts than speciation contrasts, and for pairwise comparisons we expect a higher correlation coefficient of ortholog pairs than of paralog pairs. The simulation results of Dunn et al. [@RN760] indicated that the pairwise method could not distinguish the two scenarios (null and OC), while the PIC method was able to recover expected trends. As the PIC on empirical data resembled their null simulation, they questioned both the use of pairwise methods, and the support for the ortholog conjecture from tissue specificity data.
+
+To understand their results, we first reanalyzed the data of Dunn et al. [@RN760]. We were able to reproduce all the results published in their article by running the code, which they clearly supplied. Dunn et al. reported a non-significant result (*P* = $`r format(wilcox_one_tailed1, digits= 3, scientific = FALSE)`$) for the PIC under the null simulation as well as for the empirical data, using a Wilcoxon one-tailed rank test to check if the contrasts of duplication events are higher than the contrasts of speciation events. Surprisingly, the PIC rejects the null hypothesis on the null simulations with a Wilcoxon two-tailed rank test (Fig 1A), with significant support for higher contrasts after speciation than duplication. This was robust to repeating the simulations with different random seed number (S1 Fig). This indicates that neither of the methods, PIC or pairwise, worked properly for these calibrated trees, since both the methods reject the null hypothesis when simulations are performed under the null. A two-tailed test is also significant with the empirical $\tau$ data using the sets of calibrated gene trees of Dunn et al., in the same direction as the null simulation results (median: PIC~speciation~ = `r round(median(speciation_empirical),4)`, PIC~duplication~ = `r round(median(duplication_empirical), 4)`, $`r format(wilcox_two_tailed_empirical, digits= 3, scientific = TRUE)`$). 
+
+PIC is standardized by the expected variance of daughter branch lengths for each node of event [@RN807;@RN782;@RN779;@RN780]. Therefore, accurate branch length estimation in absolute time (e.g. in Million Years -- My) is needed [@RN781;@RN782;@RN807;@RN779;@RN780]. Since the accuracy and performance of the PIC method largely depend on proper branch length calibration [@RN779;@RN768;@RN782] we investigated possible biases created during calibration of gene trees, especially concerning duplication times for which we have no external reference (e.g. no fossils) (S2 Fig). 
+
+
+```{r phylogenetic_analyses_trees_with_strong_signals, eval=T, echo=F, message=F, warning=F}
+
+  ## Identifying trees with strong phylogenetic signals using the criteria (Blomberg's K > 0.551) as specificed by Dunn et al. in their paper 
+  ## We make a vector to collect calibrated tree index with Blomberg's K > 0.551
+  tree_index <- as.numeric(row.names(tree_summary)[(!(is.na(tree_summary$K)) & (tree_summary$K > 0.551))])
+  trees_new <- gene_trees_calibrated[c(tree_index)] ## List of trees with strong phylogenetic signals
+  subset.trees <- length(trees_new)
+
+  ## Counting trees with low phylogenetic signals    
+  count_trees <- (length(gene_trees_calibrated)-length(trees_new))/length(gene_trees_calibrated)
+  count_trees <- paste(round(count_trees*100, 2), "%", sep="")
+    
+  ## Collecting null simulation trees associated with strong phylogenetic signals  
+	trees_new_sim_null <- gene_trees_sim_null[c(tree_index)]
+	
+	## Making a dataframe by combining data slots of all these trees
+	new_sim_null_contrast <- bind_rows(lapply(trees_new_sim_null,summary_function))
+    
+	## Collecting OC simulation trees associated with strong phylogenetic signals to make a dataframe with combined data slots for all trees
+	trees_new_sim_oc <- gene_trees_sim_oc[c(tree_index)]
+	new_sim_oc_contrast <- bind_rows(lapply(trees_new_sim_oc,summary_function))
+	  
+	## Extracting the columns of event and PIC data from null and OC simulation result of trees with strong phylogenetic signals
+  null_data.new <- na.omit(new_sim_null_contrast[c(6,20)])
+  null_data.new$label <- "Null simulation"
+  OC_data.new <- na.omit(new_sim_oc_contrast[c(6,20)])
+  OC_data.new$label <- "OC simulation"
+  
+  ## Obtaining speciation and duplication PICs from null and OC simulation of trees with strong phylogenetic signals
+  speciation_null_new <- null_data.new$pic[which(null_data.new$Event=="Speciation")]
+  duplication_null_new <- null_data.new$pic[which(null_data.new$Event=="Duplication")]
+  speciation_oc_new <- OC_data.new$pic[which(OC_data.new$Event=="Speciation")]
+  duplication_oc_new <- OC_data.new$pic[which(OC_data.new$Event=="Duplication")]
+  
+  ## Performing Wilcoxon tests on null and OC simulation data of trees with strong phylogenetic signals
+  wilcox_1_tailed1_new <- one_tailed_wilcox(duplication_null_new,speciation_null_new)
+  wilcox_1_tailed2_new <- one_tailed_wilcox(speciation_null_new,duplication_null_new)
+  wilcox_2_tailed_null_new <- two_tailed_wilcox(speciation_null_new,duplication_null_new)
+  wilcox_2_tailed_oc_new <- two_tailed_wilcox(speciation_oc_new,duplication_oc_new)
+
+```
+
+
+
+```{r phylogenetic_signal,eval=T, echo=F, message=F, warning=F}
+
+  ## Identifying time calibrated trees with negative branch lengths
+  trees_negative <- negative_edgelength(gene_trees_calibrated)
+ 
+  ## List of calibrated trees without negative branch lengths
+  gene_trees_pic1 <- gene_trees_pic[-trees_negative]  
+  
+  ## Computing phylogenetic signal for list of trees without negative branch lengths 
+  ## Trees for which phylogenetic signal estimation failed, we assigned a random value 1000 to distinguish it from actual estimated values
+  signal_tree <- bind_rows(lapply(gene_trees_pic1,Phylogenetic_signal)) 
+  signal_tree$tree_number <- as.numeric(rownames(signal_tree))
+  
+  ## Dataframe with Blomberg's K
+  signal_tree_new <- signal_tree[which(signal_tree$K_effecient<1000),]
+  phylosig_blomberg <- signal_tree_new[which(signal_tree_new$Pvalue_Blomberg<0.05),] 
+  phylosig_blomberg <- phylosig_blomberg[c(1:3,6)]
+  
+  ## Dataframe with Pagel's lamba
+  signal_tree_new2 <- signal_tree[which(signal_tree$lambda_estimate<1000),] 
+  phylosig_pagel <- signal_tree_new2[which(signal_tree_new2$Pvalue_pagel<0.05),] 
+  phylosig_pagel <- phylosig_pagel[c(1,4:6)]
+    
+```
+
+
+The purpose of applying a phylogenetic method is to generate independent statistical data points for traits, which are otherwise not independent because of their phylogenetic relatedness. Such statistical non-independence among species trait values can be measured by "phylogenetic signal" [@RN819; @RN768; @RN800; @RN820;@RN826]. Blomberg's K and Pagel's $\lambda$ are widely used methods to capture such phylogenetic signal [@RN819;@RN768]. Dunn et al. [@RN760] used Blomberg's K in their study. In case of Blomberg's K the value ranges from 0 to $\infty$, where a value of 0 indicates no phylogenetic signal, a value of 1 indicates trait evolution according to a Brownian model (BM), values between 0 and 1 indicate that distant relatives are more similar than expected under BM, and values larger than 1 indicate that close relatives are more similar than expected under BM [@RN819; @RN768; @RN800; @RN820;@RN826]. With a cutoff of K > 0.551, Dunn et al. [@RN760] obtained only `r subset.trees` out of `r length(gene_trees_calibrated)` calibrated trees with strong phylogenetic signal. Using a cut-off of *P* < 0.05 together with K > 0.551 leads to 1135 trees, which produce similar results (S3 Fig) to that set of `r subset.trees` trees. We continued analyses with the `r subset.trees` trees of Dunn et al. [@RN760] for consistency. In any case, it is notable that trait ($\tau$) values are independent of phylogeny for the majority of the gene trees. For these `r (length(gene_trees_calibrated)-subset.trees)` trees, implementation of PIC to produce statistically independent data points might not be necessary. Moreover, it can be misleading if the contrasts are not checked for adequate standardization as per BM after applying PIC (discussed later). The phylogenetic method still rejects the null hypothesis under null simulations for those `r subset.trees` trees (Fig 1B), showing that the problem is not simply due to low phylogenetic signal. 
+
+
+```{r Fig1, dpi=400,fig.width=8, fig.height=3.5, fig.cap="**Fig 1**: Reanalyses of phylogenetic simulation data of  Dunn et al. [@RN760]. *P* values are from Wilcoxon two-tailed tests. In null simulations, there should be no difference in contrasts between events. In OC (Ortholog Conjecture) simulations, contrasts are expected to be higher for duplication than for speciation. (A) An excess of contrasts for speciation than duplication reject the null hypothesis under null simulation scenario for all empirical time calibrated gene trees. (B) Results are similar with a subset of trees with strong phylogenetic signal for $\\tau$."}
+    
+  ## To make the plot, we made a single dataframe of both simulation data of all calibrated gene trees
+  simulation.df <- rbind(null_data.dunn, OC_data.dunn)
+  all_trees <- paste0("A. Plots on ",length(gene_trees_calibrated), " trees", sep="")
+  
+  ## Dataframe is built based on 2082 trees with strong phylogenetic signals
+  simulation.new <- rbind(null_data.new, OC_data.new)
+  subset_trees <- paste0("B. Plots on ",subset.trees, " trees", sep="")
+
+  ## Generating plot on simulation data for all 8520 calibrated trees
+  dodge <- position_dodge(width = 0.51)
+    
+  plotA <- ggplot(simulation.df,aes(x=label, y=pic, fill=Event)) + 
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+    xlab(NULL) +
+    ylab(expression(bold("Phylogenetic Independent Contrasts (PICs)"))) +
+    coord_cartesian(ylim=c(0, 0.05)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.9)) +
+    theme(legend.position="none")+
+    theme(axis.text.y = element_text(size=10)) +
+    theme(axis.text.x = element_text(size=10,face="bold")) +
+    ggtitle(paste0(all_trees))+
+    theme(plot.title = element_text(face = "bold"))+
+    annotate("text", x=1.04, y=0.035, label=wilcox_two_tailed_null, fontface=4) +
+    annotate("text", x=1.98, y=0.035, label=wilcox_two_tailed_oc, fontface=4)
+  
+    
+  ## Generating plot on simulation data for all 2082 calibrated trees
+  plotB <- ggplot(simulation.new,aes(x=label, y=pic, fill=Event)) + 
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+    xlab(NULL) +
+    ylab(NULL) +
+    coord_cartesian(ylim=c(0, 0.05)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.9),legend.text=element_text(size=8)) +
+    theme(axis.text.y= element_text(size=10)) +
+    theme(axis.text.x = element_text(size=10,face="bold"))+
+    ggtitle(paste0(subset_trees))+
+    theme(plot.title = element_text(face = "bold"))+
+    annotate("text", x = 1.04, y = 0.035, label= wilcox_2_tailed_null_new, fontface=4) +
+    annotate("text", x = 1.98, y = 0.035, label= wilcox_2_tailed_oc_new, fontface=4)
+    
+  grid.arrange(plotA,plotB,ncol = 2)
+   
+```
+
+
+```{r Deatiled_analyses_on_empirical_data, echo=F, message=F, warning=F}
+  
+  ## Obtaining calibration time points for speciation and duplication events for empirical data
+  speciation.empirical <- unique(round(as.integer(nodes_contrast$node_age[which(nodes_contrast$Event == "Speciation")]), 0))
+  duplication.empirical <- unique(round(as.integer(nodes_contrast$node_age[which(nodes_contrast$Event == "Duplication")]), 0))
+  
+  ## Expected variance of events
+  ## We used a cutoff of pic < 0.5 to get rid of branch length underestimation bias as used by Dunn et al.
+  Exp_var.speciation <- nodes_contrast$var_exp[nodes_contrast$Event=="Speciation" & nodes_contrast$pic < 0.5] 
+  Exp_var.duplication <- nodes_contrast$var_exp[nodes_contrast$Event=="Duplication"  & nodes_contrast$pic < 0.5] 
+  Exp_var.duplication.precede.speciation <- nodes_contrast$var_exp[nodes_contrast$Event=="Duplication" & nodes_contrast$node_age > 296 & nodes_contrast$pic < 0.5] # Expected variance of duplication events preceding oldest speciation event of the trees
+  
+  ## Performing test on expected variance
+  Exp_var.pvalue <- wilcox.test(Exp_var.duplication.precede.speciation,Exp_var.speciation,alternative="two.sided")$p.value
+  if(Exp_var.pvalue == 0) Exp_var.pvalue1 <- 2.2e-16
+  if(Exp_var.pvalue != 0) Exp_var.pvalue1 <- Exp_var.pvalue
+  
+  ## Exptracting data of trees with strong phylogenetic signals for expected variance analyses 
+	trees_new_pic <- gene_trees_pic[c(tree_index)]
+	trees_new_contrast <-bind_rows(lapply(trees_new_pic,summary_function))
+	trees_new_contrast <-trees_new_contrast[which(!is.na(trees_new_contrast$var_exp)),]
+	Exp_var.speciation_subset <- na.omit(trees_new_contrast$var_exp[trees_new_contrast$Event=="Speciation" & trees_new_contrast$pic < 0.5])## all speciation events
+  Exp_var.duplication_subset <- na.omit(trees_new_contrast$var_exp[trees_new_contrast$Event=="Duplication"  & trees_new_contrast$pic < 0.5]) ## all duplication events
+	  
+	 ## Making a dataframe of expected variance for trees with strong phylogenetic signals
+  check_df <- data.frame(exp_var=NA,Event=NA)
+  check_df <- rbind(check_df, data.frame(exp_var=Exp_var.speciation_subset,Event="Speciation"))
+  check_df <- rbind(check_df, data.frame(exp_var=Exp_var.duplication_subset,Event="Duplication"))
+  check_df <- check_df[-1,]
+  check_df$Event <- factor(check_df$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Making a dataframe of expected variance distribution of all 8520 calibrated trees 
+  check_df1 <- data.frame(exp_var=NA,Event=NA)
+  check_df1 <- rbind(check_df1, data.frame(exp_var=Exp_var.speciation,Event="Speciation"))
+  check_df1 <- rbind(check_df1, data.frame(exp_var=Exp_var.duplication,Event="Duplication"))
+  check_df1 <- check_df1[-1,]
+  check_df1$Event <- factor(check_df1$Event, levels=c("Speciation", "Duplication"))
+ 
+```
+
+
+Dunn et al. [@RN760] used `r nrow(calibration_times_focal)` speciation time points to calibrate gene trees. The oldest speciation calibration was at `r max(calibration_times_focal$age)` My.  All other calibrated nodes were duplication nodes leading to obtain ~`r length(duplication.empirical)` unique duplication time points for the `r length(gene_trees_calibrated)` calibrated trees [@RN760]. Out of these, `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` time points preceded the oldest speciation node age. Surprisingly, the calibrated node age of the oldest duplication event was found to be `r as.integer(max(duplication.empirical))` My, that is, 2600 times older than the Earth. This is indicative of the difficulty of estimating the age of ancient duplications by phylogenetic methods. Those `r length(duplication.empirical[duplication.empirical > max(speciation.empirical)])` high duplication node ages eventually led to much larger expected variances for gene duplication events (median expected variance for duplication events preceding the oldest speciation events: `r round(median(Exp_var.duplication.precede.speciation),0)`, median expected variance for speciation events: `r round(median(Exp_var.speciation),0)`). This explains why the mean paralog distance was ~`r round((paralog_distance_mean/ortholog_distance_mean),1)` times higher than that of the mean ortholog distance (S4A Fig). This data distribution also makes it appear as if no speciation happened before `r max(speciation.empirical)` My, a problem shared with the pairwise analysis of the same data [@RN762]. There are also branch length issues for duplication events younger than the oldest speciation events, including very short branches and negative branch lengths. All this led to obtain abnormally high duplication contrasts for the empirical data. To limit such problems, Dunn et al. [@RN760] removed node contrasts higher than 0.5 on the empirical data (this does not impact Fig 1, as the simulation data never has such high contrasts). Following this, there are still higher expected variances following gene duplication events (S4A and S4B Figs). In the null simulations only the $\tau$ values are simulated, while the branch lengths (hence the variances) are taken from the empirical data, and thus share its biases. This explains why contrasts are lower for duplications than for speciations under null simulations as well as with empirical data.
+
+\vspace{0.5cm}
+
+__Randomization tests to assess the performance of phylogenetic method__
+
+
+```{r randomization_tau_trees, eval=T, echo=F, message=F, warning=F}
+
+  ## Since our dataset contains many speciation trees with no duplication, this may bias the result.
+  ## So we identified calibrated trees with atleast one duplication events 
+  trees_of_interest <- mclapply(gene_trees_pic1,tree_with_duplication, mc.cores = cores)
+  trees_of_interest <- trees_of_interest[!is.na(trees_of_interest)] 
+
+  ## All calibrated trees with permuted actual Tau of the tips 
+  set.seed(23456)
+  Tau_randomized_tree <- mclapply(gene_trees_pic,shuffling_tau,mc.cores = cores)
+  
+  ## Permuted Tau for calibrated trees with atleast one duplication event
+  Tau_randomized_filtered_tree <- mclapply(trees_of_interest,shuffling_tau,mc.cores = cores)
+
+  ## Calculated PIC based on randomized Tau for both list of trees
+  Tree_pic_randomized <- mclapply(Tau_randomized_tree,contrast_random,mc.cores = cores)
+  Filtered_tree_pic_randomized_tau <- mclapply(Tau_randomized_filtered_tree,contrast_random,mc.cores = cores)
+
+  ## Summarizing data of all trees in single dataframe, and removing rows for which contrasts are not available (e.g. for tips)
+  summary_tree_pic_randomized <- bind_rows(lapply(Tree_pic_randomized,summary_function))
+  summary_filtered_tree_pic_randomized_tau <- bind_rows(lapply(Filtered_tree_pic_randomized_tau,summary_function))
+  Random_tau_contrast <- summary_tree_pic_randomized[which(!is.na(summary_tree_pic_randomized$pic_abs_random)),]
+  Random_tau_contrast_filtered_tree <- summary_filtered_tree_pic_randomized_tau[which(!is.na(summary_filtered_tree_pic_randomized_tau$pic_abs_random)),]
+  Random_tau_contrast <- Random_tau_contrast[which(Random_tau_contrast$pic_abs_random < 0.5),]
+  Random_tau_contrast_filtered_tree <- Random_tau_contrast_filtered_tree[which(Random_tau_contrast_filtered_tree$pic_abs_random < 0.5),]
+
+  ## Removing rows with NA event, and collecting all nodes contrast 
+  nodes_contrast_random <- Random_tau_contrast[!is.na(Random_tau_contrast$D),]
+  nodes_contrast_random_tau_filtered_tree <- Random_tau_contrast_filtered_tree[!is.na(Random_tau_contrast_filtered_tree$D),]
+  nodes_contrast_random$Event <- factor(nodes_contrast_random$Event, levels=c("Speciation", "Duplication"))
+  nodes_contrast_random_tau_filtered_tree$Event <- factor(nodes_contrast_random_tau_filtered_tree$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Collecting PICs and expected variances of events after randomizing actual Tau 
+  speciation_pic.r <- nodes_contrast_random$pic_abs_random[which(nodes_contrast_random$Event=="Speciation")]
+  duplication_pic.r <- nodes_contrast_random$pic_abs_random[which(nodes_contrast_random$Event=="Duplication")]
+  speciation_pic.var <- nodes_contrast_random$Variance[which(nodes_contrast_random$Event=="Speciation")]
+  duplication_pic.var <- nodes_contrast_random$Variance[which(nodes_contrast_random$Event=="Duplication")]
+
+  ## Performing test 
+  wilcox_1_tailed.r <- one_tailed_wilcox(duplication_pic.r,speciation_pic.r)
+  wilcox_2_tailed.r <- two_tailed_wilcox(duplication_pic.r,speciation_pic.r)
+  variance_difference<- wilcox.test(duplication_pic.var,speciation_pic.var, alternative = "greater")$p.value
+  if(variance_difference == 0) variance_diff <- 2.2e-16
+  if(variance_difference!= 0) variance_diff <- variance_difference
+
+  ## Median PICs of randomized Tau of the two events of all calibrated trees
+  median_nodes_contrast_random <- NULL
+  median_nodes_contrast_random <- aggregate(pic_abs_random~Event, nodes_contrast_random, median)
+  median_nodes_contrast_random$pic.round <- paste0("Median = ",round(median_nodes_contrast_random$pic_abs_random,4),sep="")
+  
+  ## Median PICs of randomized Tau of the two events of trees with atleast one duplication
+  median_nodes_contrast_random_tau_ftree <- NULL
+  median_nodes_contrast_random_tau_ftree <- aggregate(pic_abs_random~Event, nodes_contrast_random_tau_filtered_tree, median)
+  median_nodes_contrast_random_tau_ftree$pic.round <- paste0("Median = ",round(median_nodes_contrast_random_tau_ftree$pic_abs_random,4),sep="")
+
+```
+
+
+
+```{r randomization_events_trees, eval=T, echo=F, message=F, warning=F}
+
+  ## All calibrated trees with permuted actual internal node events
+  set.seed(23456)
+  Event_randomized_pic_tree <- mclapply(gene_trees_pic, shuffling_event, mc.cores = cores)
+
+  ## Permuting internal node events for trees with atleast one duplication event
+  Event_randomized_filtered_tree <- mclapply(trees_of_interest,shuffling_event,mc.cores = cores)
+
+  ##Summarizing data of all list of trees in a dataframe
+  summary_event_randomized_pic_tree <- bind_rows(lapply(Event_randomized_pic_tree,summary_function))
+  summary_filtered_tree_pic_randomized_event <- bind_rows(lapply(Event_randomized_filtered_tree,summary_function))
+  
+  Random_event_contrast <- summary_event_randomized_pic_tree[which(!is.na(summary_event_randomized_pic_tree$pic)),]
+  Random_event_contrast_filtered_tree <- summary_filtered_tree_pic_randomized_event[which(!is.na(summary_filtered_tree_pic_randomized_event$pic)),]
+  Random_event_contrast <- Random_event_contrast[which(Random_event_contrast$pic < 0.5),]
+  Random_event_contrast_filtered_tree <- Random_event_contrast_filtered_tree[which(Random_event_contrast_filtered_tree$pic < 0.5),]
+  
+  ## Removing NA Events and collecting nodes contrasts of newly assigned events
+  nodes_contrast_random_events <- Random_event_contrast[!is.na(Random_event_contrast$event_new),]
+  nodes_contrast_random_event_filtered_tree <- Random_event_contrast_filtered_tree[!is.na(Random_event_contrast_filtered_tree$event_new),]
+  nodes_contrast_random_events$event_new <- factor(nodes_contrast_random_events$event_new, levels=c("Speciation", "Duplication"))
+  nodes_contrast_random_event_filtered_tree$event_new <- factor(nodes_contrast_random_event_filtered_tree$event_new, levels=c("Speciation", "Duplication"))
+  
+  ## Collecting PICs and expected variances of events after randomization 
+  speciation_pic_revent <- abs(nodes_contrast_random_events$pic[which(nodes_contrast_random_events$event_new=="Speciation")])
+  duplication_pic_revent <- abs(nodes_contrast_random_events$pic[which(nodes_contrast_random_events$event_new=="Duplication")])
+  speciation_pic_rvar <- nodes_contrast_random_events$var_exp[which(nodes_contrast_random_events$event_new=="Speciation")]
+  duplication_pic_rvar <- nodes_contrast_random_events$var_exp[which(nodes_contrast_random_events$event_new=="Duplication")]
+  
+  ## Performing test 
+  wilcox_1_tailed_revent <- one_tailed_wilcox(duplication_pic_revent,speciation_pic_revent)
+  wilcox_2_tailed_revent <- two_tailed_wilcox(duplication_pic_revent,speciation_pic_revent)
+
+  ## Median PICs of randomized events of all calibrated trees 
+  median_random_event <- NULL
+  median_random_event <- aggregate(pic~event_new, nodes_contrast_random_events, median)
+  median_random_event$pic.round <- paste0("Median = ",round(median_random_event$pic,4),sep="")
+  
+  ## Median PICs of randomized events of trees with atleast one duplication
+  median_nodes_contrast_random_event_ftree <- NULL
+  median_nodes_contrast_random_event_ftree <- aggregate(pic~event_new, nodes_contrast_random_event_filtered_tree, median)
+  median_nodes_contrast_random_event_ftree$pic.round <- paste0("Median = ",round(median_nodes_contrast_random_event_ftree$pic,4),sep="")
+
+```
+
+
+```{r additional_analyses, eval=T, echo=F, message=F, warning=F}
+  
+  ## Collecting tree data (numner of tips, internal node events proportions) for all calibrated trees in a single dataframe
+  tree_data_all <- bind_rows(lapply(gene_trees_pic,tree_data_collection))
+  tree_data_plot <- na.omit(tree_data_all) ## Removing data for trees having no duplication events
+  
+  ## Dataframe for scatter plot
+  data_scatterplot <- data.frame(ntip=NA,Expected_variance=NA,Event=NA)
+  data_scatterplot <- rbind(data_scatterplot, data.frame(ntip=tree_data_plot$tip_num, Expected_variance=tree_data_plot$spe_var,Event="Speciation"))
+  data_scatterplot <- rbind(data_scatterplot, data.frame(ntip=tree_data_plot$tip_num,Expected_variance=tree_data_plot$dup_var,Event="Duplication"))
+  data_scatterplot <- data_scatterplot[-1,]
+  data_scatterplot$Event <- factor(data_scatterplot$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Plotting number of tips vs. expected variance of events
+  event_variance <- ggplot(data_scatterplot,aes(x=ntip))+
+    geom_line(aes(y=Expected_variance, color=Event),alpha=0.5)+
+    xlab(expression(bold("Number of tips"))) +
+    ylab(expression(bold("Expected variance"))) +
+    xlim(0,180) +
+    ylim(0,2000) +
+    theme_classic() +
+    theme(legend.title=element_blank(),legend.position=c(0.7,0.8)) +
+    theme(axis.text=element_text(size=10,face="bold")) +
+    ggtitle(expression(bold("B. Variance distribution for events")))+
+    theme(plot.title = element_text(face="bold"))
+  
+  ## Creating dataframe for plotting events proportion distribution for all 8520 calibrated trees
+  plot_data <- data.frame(proportion_event=NA,Event=NA)
+  plot_data <- rbind(plot_data, data.frame(proportion_event=tree_data_all$spe_prop,Event="Speciation"))
+  plot_data <- rbind(plot_data, data.frame(proportion_event=tree_data_all$dup_prop,Event="Duplication"))
+  plot_data <- plot_data[-1,]
+  plot_data$Event <- factor(plot_data$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Histogram to show distribution of proportion of events for all calibrated trees
+  event_histogram <- ggplot2_histogram_mod(data=plot_data, xName='proportion_event',
+    groupName='Event',legendPosition="right",
+    alpha=1, addDensity=TRUE,
+    addMedianLine=TRUE, medianLineColor=c("#F8766D","#00BFC4"), medianLineSize=1) +
+    theme_classic() +
+    ggtitle(expression(bold("D. Event proportion plot")))+
+    theme(plot.title = element_text(face="bold"))+
+    xlab("Proportion of events") + 
+    ylab("Density") +
+    theme(legend.title=element_blank(),legend.position=c(0.8,0.7),legend.text=element_text(size=8)) +
+    theme(axis.text=element_text(size=10,face="bold")) +
+    theme(plot.title = element_text (face="bold", 
+                              colour="black", lineheight=1.0),
+          axis.title.x=element_text( face="bold",
+                              colour="black", hjust=0.5),
+          axis.title.y=element_text(face="bold",
+                              colour="black", vjust=0.5, angle=90))
+
+```
+
+
+We used randomization tests to assess whether the results of different analyses of the empirical dataset are reliable and unbiased. Our expectation is that results from the empirical result should differ from the randomized ones. In a first randomization test, we randomized the trait values (i.e. randomly permuting the $\tau$ values) across the tips of each tree without altering the node events of the trees. We then computed the contrasts for the speciation and duplication events of the trees when there is no relation between trait values and phylogenetic relationships. When we compared the node contrasts of speciation and duplication events of these randomized trees (Fig 2A), we found the same pattern as reported for the empirical gene trees by Dunn et al. [@RN760]. This shows that the PIC applied to these data is not measuring phenotypic evolution, and thus not meeting the aim for applying the method. It confirms that results are driven by their large differences in branch lengths (i.e. in expected variances) (Fig 2B), as on simulated null data. Any effect of trait divergence rates of speciation and duplication events is masked by this branch length difference. This violates the basic assumption of applicability of the PIC method to Brownian trait evolution. To remove the problem of difference in expected variances of the two events, we performed a second randomization test: we kept the original $\tau$ value for tips but randomly shuffled the events (duplication or speciation) of internal nodes of the empirical gene trees to maintain the original proportions of speciation and duplication events. The resulting trend (Fig 2C) still resembled the empirical gene trees data. This appears due to the fact that the majority of the tree events are speciation events (Fig 2D) with speciation node ages $\leq$ 296 My. Most of the trees with many duplication events on the other hand have ancient duplication events (duplication node age > 296 My) for which the evolutionary rates of duplication are often masked by the effect of longer branch lengths. Hence, opposite to our expectation, the calibrated trees with no or few duplications have higher overall nodes contrast (apparent fast evolution) than trees with many duplications (apparent slow evolution). This might be due to greater difficulty in detecting paralogs for fast evolving genes. Therefore, reshuffling of the events may not change the observed pattern of higher speciation contrasts than duplication contrasts.
+
+Out of `r length(gene_trees_calibrated)` calibrated trees, `r trees_with_no_duplication` were species-only trees with no duplication events. For these `r trees_with_no_duplication` trees, random shuffling of events had no impact. To avoid this bias, we removed those `r trees_with_no_duplication` speciation trees as well as trees with negative branch lengths, and randomized the trait or the internal node events 100 times on the remaining `r length(trees_of_interest)` trees. However, we still always obtained significantly higher contrasts of speciation than of duplication (S5A and S5B Figs). The randomization tests pattern is the same when we used `r subset.trees` trees with strong phylogenetic signals (S5C and S5D Figs). All these analyses indicate that the results reported by Dunn et al. [@RN760] are biased by the available gene trees, and that this bias is not easy to correct.
+
+
+```{r Fig2, dpi=400,fig.width=8, fig.height=8, fig.cap="**Fig 2**: Analyses on calibrated empirical gene trees of Dunn et al. [@RN760]. *P* values are from  Wilcoxon two-tailed tests. (A) Randomly shuffling the $\\tau$ values of the tips for 8520 gene trees does not alter the trend of empirical result [@RN760] showing an opposite trend to the ortholog conjecture. (B) The figure indicates the expected variance is much higher for duplication than speciation events irrespective of the number of tips considered for the study. (C) Using the original $\\tau$ data, if we permute the events (Speciation or Duplication or NA) of the nodes, the trend of result still resembles the empirical result obtained by the recent study [@RN760]. (D) The proportions of speciation events are much higher than duplication events for all time-calibrated trees. The dotted line represents the median proportion of both events. This plot shows a high frequency of trees have no/few duplication events."}
+
+  ## Plotting the randomization data result for all calibrated trees 
+  ## 1st plot
+  jitterplot_randomized_tau <- 
+    ggplot(nodes_contrast_random,aes(x=Event, y=pic_abs_random, fill=Event)) + 
+    geom_jitter(aes(colour = Event),position=position_jitter(0.02), alpha=0.02) +
+    geom_text(data = median_nodes_contrast_random, aes(label = pic.round),fontface = 2,size = 4, hjust=0.5,vjust =-2.5)+
+    geom_crossbar(data=median_nodes_contrast_random, aes(ymin = pic_abs_random, ymax = pic_abs_random),size=0.2,col= "black", width = .2)+
+    xlab( NULL ) +
+    ylab(expression(bold("Phylogenetic Independent Contrasts (PICs)"))) +
+    ylim(0, 0.4) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(1.9,1.9)) +
+    theme(axis.text=element_text(size=10,face="bold")) +
+    theme(legend.text=element_text(size=10,face="bold")) +
+    annotate("text", x = 1.5, y = 0.3, label= wilcox_2_tailed.r, fontface = 4)+
+    ggtitle(expression(bold(paste("A. Plot using randomized trait, ", tau))))+
+    theme(plot.title = element_text(face="bold"))
+    
+  ## 2nd plot
+  nodes_contrast_random_events$event_new <-factor(nodes_contrast_random_events$event_new, levels=c("Speciation", "Duplication")) 
+    
+  jitterplot_randomized_event <- 
+    ggplot(nodes_contrast_random_events,aes(event_new, y=pic, fill=event_new)) + 
+    geom_jitter(aes(colour = event_new),position=position_jitter(0.02), alpha=0.02) +
+    geom_text(data = median_random_event, aes(label = pic.round),fontface = 2,size = 4, hjust=0.5,vjust = -2.5)+
+    geom_crossbar(data=median_random_event, aes(ymin = pic, ymax = pic),
+                  size=0.2, col= "black",width = .2)+
+    xlab( NULL ) +
+    ylab( NULL) +
+    ylim(0, 0.4) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(1.8,1.8)) +
+    theme(axis.text=element_text(size=10,face="bold")) +
+    theme(legend.text=element_text(size=10,face="bold")) +
+    annotate("text", x = 1.5, y = 0.3, label= wilcox_2_tailed_revent, fontface = 4)+
+    ggtitle(expression(bold(paste("C. Plot using randomized events"))))+
+    theme(plot.title = element_text(face="bold"))
+  
+  ##Plotting the result
+  grid.arrange(jitterplot_randomized_tau,jitterplot_randomized_event, event_variance,event_histogram, nrow=2,ncol=2) 
+
+```
+  
+\vspace{0.5cm}  
+
+__The ortholog conjecture when $\tau$ evolution follows a non-Brownian model __
+
+
+```{r Analysis_with_Caper_package_without_data_transformation, eval=T, echo=F, message=F, warning=F}
+
+  ## In this section, we plan to perform diagnostic tests to check for assumptions of PIC applicability for Tau
+  ## This diagnostic test function takes some times, so we previously ran "Premanuscript_run_TM.R" and saved the results
+  ## Stored data are available in the following link https://doi.org/10.5281/zenodo.3354285 
+  ## We loaded those stored results for further analyses
+  load("/Users/admin/Desktop/nwork/simulation/Data_TMRR_latest.rda")
+
+  ## Summering results of different lists of BM trees (for details check "Premanuscript_run_TM.R")
+  summary_brownian_tree <- bind_rows(lapply(standarized_pic_tree_with_dup_final,summary_function))
+  summary_ancient_speciation_tree <- bind_rows(lapply(standarized_pic_tree_ancient_speciation,summary_function))
+  Contrast_brownian <- summary_brownian_tree[which(!is.na(summary_brownian_tree$pic_Tau)),]
+  Contrast_ancient_speciation_tree <- summary_ancient_speciation_tree[which(!is.na(summary_ancient_speciation_tree$pic_Tau)),]
+  
+  ## We have checked for maximum PIC for all sets of trees, and the PIC was always less than 0.5
+  
+```
+
+
+For several cases, including non-Brownian modes of evolution, there is no a priori reason to assume that computed contrasts are always phylogenetically independent [@RN862]. Diagnostic plot tests (details in the Methods) for each tree are essential to ensure phylogenetic independence, by obtaining pattern free scatterplots of the absolute value of standardized contrasts versus their standard deviations, node height, node age, or node depth  [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816;@RN851;@RN862]. A statistically significant negative or positive correlation in the diagnostic plots confirms that contrasts are non independent, and such a pattern may be due to a violation of Brownian-motion of trait evolution for that tree [@RN851;@RN781;@RN782;@RN779;@RN780;@RN783;@RN816;@RN862]. Calibration bias in branch lengths (equivalent to introducing random errors into branch lengths) also influences evolutionary models of trait evolution of a tree since the second and third assumptions of PIC method applicability are closely related [@RN782;@RN851]. This matches with the observation of Dunn et al.  [@RN760] where they considered model-fitting criteria to categorize their list of `r length(gene_trees_calibrated)` calibrated trees. They contrasted the pure BM model (neutral drift $\sigma$^2^ model with no selection, i.e. $\alpha$ = 0) to the Ornstein-Uhlenbeck (OU) model (i.e. an extended BM model with stabilizing selection $\alpha$) [@RN843;@RN841] for this purpose. The non-Brownian behavior of the trait evolutionary model starts to become apparent as $\alpha$ gets larger [@RN836]. After computing the difference in Akaike Information Criterion ($\Delta$AIC) [@RN380] scores of the models for each tree, they [@RN760] identified `r paste0(round((length(gene_trees_pic_ou)/length(gene_trees_calibrated)),4)*100,"%")` gene trees which favored an OU model, i.e. a deviation from pure BM. Moreover, in contrast to the expectation of Brownian trees,  `r paste0(round((length(tree_summary$alpha_ou[tree_summary$alpha_ou>=2])/length(gene_trees_calibrated)),4)*100,"%")` of the OU trees have $\alpha$ $\ge$ 2. Remedial measures such as branch length transformations (details in the Methods), along with diagnostic plot tests, can substantially improve the performance of the PIC methods when two of the three basic assumptions are violated [@RN781;@RN782;@RN779;@RN851;@RN862;@RN816].
+
+
+```{r Analysis_on_2545_trees_before_plotting, eval=T, echo=F, message=F, warning=F}
+
+ ## Analysis considering duplication age <= oldest speciation age
+  speciation_pic_nodeage <- Contrast_brownian$node_age[which(Contrast_brownian$Event=="Speciation")]
+  Contrast_brownian_plot <- Contrast_brownian[which(Contrast_brownian$node_age <= max(speciation_pic_nodeage)),]
+
+  # Considering the relevant columns for plotting and removing NA events
+  Contrast_brownian_plot <- na.omit(Contrast_brownian_plot[c(6,18:19,22:24)])
+  Contrast_brownian_plot$Event <- factor(Contrast_brownian_plot$Event, levels=c("Speciation", "Duplication"))
+  
+  # Extracting speciation and duplication PICs  
+  speciation_contrast_tau <- abs(speciation_contrast(Contrast_brownian_plot,"pic_Tau"))
+  duplication_contrast_tau <-  abs(duplication_contrast(Contrast_brownian_plot,"pic_Tau"))
+  
+  ## Performing test 
+  wilcox_test_tau <- two_tailed_wilcox(duplication_contrast_tau,speciation_contrast_tau)
+ 
+  
+```
+
+
+To avoid bias in our inference due to non-independent contrast standardizations of OU trees, we selected trees that passed diagnostic plot tests for $\tau$ evolution. Hence, we used a subset of `r length(standarized_pic_tree_with_dup_final)` gene trees, by removing trees with negative branch lengths, pure speciation trees, and trees that failed diagnostic tests (S6 Fig). Moreover, to meet the correct branch length assumption of PIC applicability on trees with gene duplications, we used limitations of node age on gene duplication. It is necessary to put such a limitation to avoid biases due to inaccurate calibration of very old duplication nodes. Analyses on these `r length(standarized_pic_tree_with_dup_final)` trees with a node age limit of `r max(speciation_pic_nodeage)` My (i.e. node age $\leq$ maximum speciation age), provided weak support for the ortholog conjecture (Fig 3A), in contrast to previous results of Dunn et al.  Low power in our inference is not surprising since PIC is applied on OU trees, and we did not apply any branch length transformation to deal with such biases. In contrast to a BM model where trait variance increases time, an OU model can accommodate more variance towards the tips of the phylogeny [@RN868]. This means use of very old duplication nodes without diagnostic tests and without node age limits is expected to produce lower PIC for duplication than for speciation, as observed. Randomization tests on these trees supported the relevance of our inferences on empirical data (S7A-S7D Figs).When we applied suitable branch length transformation on these trees along with diagnostic plot tests to improve the performance of PIC method, we found substantial support for the ortholog conjecture (Fig 3B). It is also supported for trees with strong phylogenetic signals (Fig 3C), and for all the calibrated gene trees (Fig 3D) passing diagnostic tests after applying branch length transformation. Randomization tests on all these sets of trees following branch length transformations clearly showed distinct patterns compared to the empirical one (S8A-S8F Figs), indicating no or little bias in our inference on empirical data. 
+
+
+```{r Analysis_on_different_tree_sets_after_branch_transformation, eval=T, echo=F, message=F, warning=F}
+
+ ## Analysis on 2545 trees
+ Empirical_data_br_transformed_2545_trees<-summary_br_transformed(standarized_pic_tree_with_dup_br_transformed,"Event")
+ 
+ Pval_2545_trees<-Wilcoxon_2_sided_br_transform(Empirical_data_br_transformed_2545_trees)
+ 
+ ## Analysis on trees with strong phylogenetic signal
+ Empirical_data_br_transformed_physig_trees<-summary_br_transformed(trees_new_br_transformed,"Event")
+ 
+ Pval_physig_trees<-Wilcoxon_2_sided_br_transform(Empirical_data_br_transformed_physig_trees)
+ 
+ ## Analysis on all calibrated trees used by Dunn et al.
+ 
+ Empirical_data_br_transformed_all_trees<-summary_br_transformed(gene_trees_pic_br_ransformed,"Event")
+ 
+ Pval_all_trees<-Wilcoxon_2_sided_br_transform(Empirical_data_br_transformed_all_trees)
+  
+```
+
+
+
+```{r Fig3, dpi=600, fig.width=9, fig.height=9, fig.cap="**Fig 3**: The ortholog conjecture test on $\\tau$ for trees passing diagnostic plot tests with proper controls. *P* values are from Wilcoxon two-tailed tests. 'PICs': Phylogenetic Independent Contrasts. Values inside boxplots denote median PIC value of the corresponding event. (A) Using OU trees where contrast standardizations are independent according to diagnostic plot tests. (B-D) Rescaled plots following branch length transformation before PIC analysis. (B) Using the same trees as in (A). (C) Using 2080 out of 2082 trees with strong phylogenetic signals. (D) Using 8417 out of 8520 calibrated trees that passed diagnostic tests following branch length transformation."}
+
+  ## Title of plots
+  title1 <- paste0("A. ",length(standarized_pic_tree_with_dup_final), " trees without branch transformation" , sep="")
+  title2 <-paste0("B. ",length(standarized_pic_tree_with_dup_br_transformed), " trees after branch transformation" , sep="")
+  title3 <- paste0("C. ",length(trees_new_br_transformed), " trees after branch transformation" , sep="")
+  title4 <- paste0("D. ",length(gene_trees_pic_br_ransformed), " trees after branch transformation" , sep="")
+  
+  
+  ##Making data frame for plotting
+  Frame1<-plot_frame(Contrast_brownian_plot,"pic_Tau","type1")
+  Frame2<-plot_frame(Empirical_data_br_transformed_2545_trees,"pic","type2")
+  Frame3<-plot_frame(Empirical_data_br_transformed_physig_trees,"pic","type2")
+  Frame4<-plot_frame(Empirical_data_br_transformed_all_trees,"pic","type2")
+  
+  ## Median data
+  median_data1<-median_df(Frame1)
+  median_data2<-median_df(Frame2)
+  median_data3<-median_df(Frame3)
+  median_data4<-median_df(Frame4)
+  
+  ## Boxplots
+  boxplot3A<- boxplot_new(Frame1,wilcox_test_tau,median_data1,"type1")+     
+              ggtitle(title1)+theme(legend.position = "none") +
+              theme(plot.title = element_text(face="bold"))+
+              annotate("text", x=0.87, y=0.01, label=median_data1$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.01, label=median_data1$pic.round[2], fontface=2, size = 4)
+   
+  boxplot3B<- boxplot_new(Frame2,Pval_2545_trees,median_data2,"type2")+   
+              ggtitle(title2)+ ylab(" ") + 
+              theme(legend.title=element_blank(),legend.position=c(0.8,0.8))+
+              theme(legend.text=element_text(size=10)) +
+              annotate("text", x=0.87, y=0.043, label=median_data2$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.046, label=median_data2$pic.round[2], fontface=2, size = 4)
+  
+  boxplot3C<- boxplot_new(Frame3,Pval_physig_trees,median_data3,"type2")+ 
+              ggtitle(title3)+
+              theme(legend.position = "none")+
+              annotate("text", x=0.87, y=0.037, label=median_data3$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.042, label=median_data3$pic.round[2], fontface=2, size = 4)
+  
+  boxplot3D<- boxplot_new(Frame4,Pval_all_trees,median_data4,"type2")+   
+              ggtitle(title4)+
+              theme(legend.position = "none")+ ylab(" ")+
+              annotate("text", x=0.87, y=0.042, label=median_data4$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.044, label=median_data4$pic.round[2], fontface=2, size = 4)
+  
+ ##Plotting the result
+  grid.arrange(boxplot3A,boxplot3B,boxplot3C, boxplot3D,nrow=2,ncol=2) 
+  
+```
+
+
+To avoid calibration bias of older duplication events, we also considered a more restricted set of `r length(standarized_pic_tree_ancient_speciation)` trees passing more strict conditions (S6 Fig), i.e. adequate independent contrast standardized OU trees in which there is at least one duplication, and a speciation event older than all duplications. Calibration bias for duplication events is expected to be very limited for such trees. Support for the ortholog conjecture still holds with these `r length(standarized_pic_tree_ancient_speciation)` trees (Fig 4A). Randomization tests on these `r length(standarized_pic_tree_ancient_speciation)` trees also support the biological relevance of these results (Figs 4B and 4C, S9 Fig). When we applied branch length transformation on these trees, our inference was still supported (S10A-S10C Figs). These observations confirm that the ortholog conjecture is supported by PIC for adequately standardized trees with proper control. They also suggest that diagnostic plots along with node age limits can help dealing with biases in PIC when one or more assumptions are violated. However, to obtain enough power in the PIC method for trees deviating from pure BM, proper branch length transformation is necessary.
+
+
+```{r reanalyses_Dunn_data_BM_OU,echo=F, message=F, warning=F}
+
+  ## Testing the ortholog cojecture with nodes contrasts of 3151 Brownian trees provided by Dunn et al.
+  speciation_BM_pic <- nodes_contrast_filtered_bm$pic[which(nodes_contrast_filtered_bm$Event=="Speciation")]
+  duplication_BM_pic <- nodes_contrast_filtered_bm$pic[which(nodes_contrast_filtered_bm$Event=="Duplication")]
+
+  ## Performing test 
+  wilcox_one_tailed_BM <- wilcox.test(duplication_BM_pic,speciation_BM_pic,alternative = "greater")$p.value
+  wilcox_two_tailed_BM <- wilcox.test(duplication_BM_pic,speciation_BM_pic)$p.value
+  
+  ## Identifying the index of BM trees of Dunn et al. from their all time calibrated trees
+  ## and extracting them based on their criteria for further use
+  tree_summary$index <- as.numeric(rownames(tree_summary))
+  genes_pass_BM <- tree_summary$index[tree_summary$dAIC_bm < 2]
+  BM_trees_model_fit <- gene_trees_calibrated[c(genes_pass_BM)]
+  
+```
+
+
+__The ortholog conjecture when $\tau$ evolution follows a Brownian model __
+
+
+Since BM is intrinsic to the PIC method, Dunn et al. [@RN760] also identified 3151 BM trees, out of which only 8 trees purely favored the BM model ($\Delta$AIC~BM~ < 2 and $\Delta$AIC~OU~ $\ge$ 2). The other 3143 trees favored both the BM and OU models ($\Delta$AIC~BM~ < 2 and $\Delta$AIC~OU~ < 2). A Wilcoxon two-tailed test on those 3151 trees provided similar results to the `r length(gene_trees_calibrated)` calibrated trees, i.e. higher $\tau$ evolution for orthologs than for paralogs (median: PIC~speciation~ = `r round(median(speciation_BM_pic),4)`, PIC~duplication~ = `r round(median(duplication_BM_pic), 4)`, *P* = $`r format(wilcox_two_tailed_BM, digits= 3, scientific = TRUE)`$). Thus we confirm that their selection of BM trees did not change their results, but that result is the unexpected higher PIC for speciation. A similar trend is obtained restricting to recent duplicates (node age $\le$ `r max(speciation_pic_nodeage)` My) (S11A Fig). The pattern of systematic increase of duplication PICs with node age (S11A Fig) plausibly implies that the contrasts are not independently standardized for these trees, since small and large values of standardized contrasts should be equally likely to occur on any node of the BM tree [@RN783]. Randomization tests on those trees (S11B and S11C Figs) confirmed that contrasts were not appropriately standardized, and thus the inference drawn on empirical data was not supported. When we performed diagnostic plot tests on those 3151 trees, we found support for the ortholog conjecture for the `r length(BM_tree_diagnostic_test_final)` trees passing the diagnostic tests (Fig 5A). Since trait variance increases with time in case of BM [@RN816;@RN783;@RN781], we found support for the ortholog conjecture without using any node age limits for these `r length(BM_tree_diagnostic_test_final)` contrasts standardized trees. Use of branch length transformations also supported our observations (Fig 5B, S12A and S12B Figs). These analyses suggest that Dunn et al. did not sufficiently take into account diagnostic checks of assumptions of PIC, thus their inference was erroneous by producing non independent contrasts and by violating the assumptions of phylogenetic comparative methods. 
+
+
+```{r Analyses_on_standardized_806_trees, eval=T, echo=F, message=F, warning=F}
+
+  ## Considering the relevant columns and removing the NA data
+  Contrast_brownian_806_trees <- na.omit(Contrast_ancient_speciation_tree[c(6,18:19,22:24)])
+  Contrast_brownian_806_trees$Event <- factor(Contrast_brownian_806_trees$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Taking the absolute values of PIC of Tau
+  Contrast_brownian_806_trees$pic_Tau <- abs(Contrast_brownian_806_trees$pic_Tau)
+
+  ## Extracting speciation and duplication PICs for these 806 trees passing diagnostic plots and having ancient speciation event
+  speciation_pic_tau_806 <- speciation_contrast(Contrast_brownian_806_trees,'pic_Tau')
+  duplication_pic_tau_806 <- duplication_contrast(Contrast_brownian_806_trees,'pic_Tau')
+
+  ## Median value collection for Tau of the standarized trees
+  median_tau_806 <- median_jitter((Contrast_brownian_806_trees),'pic_Tau','Event')
+  colnames(median_tau_806)[1] <- 'Event'
+  colnames(median_tau_806)[2] <- 'pic_Tau'
+  
+  ## Performing test 
+  p_tau_806 <- paste0("Two-tailed test, ", two_tailed_wilcox(duplication_pic_tau_806,speciation_pic_tau_806))
+
+```
+
+
+
+```{r Additional_analyses_on_806_BM_trees, eval=T, echo=F, message=F, warning=F}
+
+
+  ## Collecting tree data for all calibrated trees in a single dataframe
+  tree_data_806<-bind_rows(lapply(standarized_pic_tree_ancient_speciation,tree_data_collection))
+  median_number_of_tips<-median(tree_data_806$tip_num)
+  median_number_of_events<-median(tree_data_806$internal_events)
+  median_proporion_of_speciation<-median(tree_data_806$spe_prop)
+  median_proporion_of_duplication<-median(tree_data_806$dup_prop)
+  median_proporion_of_NA_event<-median(tree_data_806$NA_prop)
+
+```
+
+
+
+```{r Fig4, dpi=400,fig.width=8, fig.height=8, fig.cap= paste("**Fig 4**: Results on real and randomized data for ", length(standarized_pic_tree_ancient_speciation), " OU trees with ancient speciation events. *P* values are from  two-tailed Wilcoxon tests. (A) The jitter plot on empirical gene tree data supports the ortholog conjecture. Main plots in (B) and (C) show the distributions of two-tailed test *P* values estimated for the whole set of ", length(standarized_pic_tree_ancient_speciation), " OU trees by permuting $\\tau$ (B), and by permuting the internal node events (C) ('Speciation', 'Duplication', and 'NA') for 1000 independent runs respectively. Inset plots in (B) and (C) show *P* value distributions plots of one-tailed test to check if there was an excess of duplication contrasts over speciation contrasts by randomizing $\\tau$, and events respectively. The proportions of speciation (median = ", median_proporion_of_speciation, "), and NA events (median = ", median_proporion_of_NA_event, ") are much higher than that of duplication events (median = ", median_proporion_of_duplication, ") in these trees (S9 Fig). Hence, higher duplication contrasts are more likely to be replaced by speciation events by permutations of events. Due to this reason, we found significant shifts towards left in the main plot of C, and towards *P* value 1 in the inset plot of C to depict larger contrasts for speciation events. Comparisons of plot A to plot B, and plot A to plot C show that randomization results in both the cases actually differ from the empirical result.")}
+
+
+  ## Jitter plot with empirical data
+  plot4AM <- jitter_plot_tau(Contrast_brownian_806_trees,median_tau_806,p_tau_806)+
+            ylab(expression(bold(paste("PIC of ",tau))))+
+            ggtitle(expression(bold(paste("A. Empirical result without branch length transformation"))))
+
+   
+  ## Dataframe of P values from randomization tests on 806 trees
+  pval_dataframe_806 <- data.frame(pval_tau_2sided=NA,pval_tau_1sided=NA,pval_event_2sided=NA,pval_event_1sided=NA,tree_set=NA)
+  pval_dataframe_806 <- rbind(pval_dataframe_806, data.frame(pval_tau_2sided=pval,pval_tau_1sided=pval_1sided,pval_event_2sided=pval_event,pval_event_1sided=pval_event_1sided,tree_set="806_tree"))
+  pval_dataframe_806 <- pval_dataframe_806[-1,]
+  
+  ## Plots on P value distribution using randomized Tau
+  plot4BM <- histo_plot(pval_dataframe_806,'pval_tau_2sided','tree_set') +   
+            xlab(expression(bold(paste( bolditalic(P)," value (two-tailed test)")))) 
+  plot4BM <- plot4BM + 
+            ylim(0,150) +
+            ggtitle(expression(bold(paste("B. Randomized ", tau))))+
+            theme(plot.title = element_text(face="bold"))+
+            theme(axis.text=element_text(size=10,face="bold"))
+  plot4CM <- histo_plot(pval_dataframe_806,'pval_tau_1sided','tree_set') +   
+            xlab(expression(bold(paste( bolditalic(P)," value (one-tailed test)")))) 
+  plot4CM <- plot4CM + 
+            ylim(0,150) + 
+            #ylab(" ")+ggtitle(expression(bold(paste("C. Owo sided tests on randomized ", tau))))+
+            theme(plot.title = element_text(face="bold"))+
+            theme(axis.text=element_text(size=10,face="bold"))
+  
+  ## Plots on P value distribution using randomized internal node events
+  plot4DM <- histo_plot(pval_dataframe_806,'pval_event_2sided','tree_set') +
+           xlab(expression(bold(paste( bolditalic(P)," value (two-tailed test)"))))
+  plot4DM <- plot4DM + 
+           ylim(0,150) +
+           ggtitle(expression(bold(paste("C. Randomized events"))))+
+           theme(plot.title = element_text(face="bold"))+
+           theme(axis.text=element_text(size=10,face="bold"))
+  plot4EM <- histo_plot(pval_dataframe_806,'pval_event_1sided','tree_set') +
+           xlab(expression(bold(paste( bolditalic(P)," value (one-tailed test)"))))
+  plot4EM <- plot4EM + 
+           ylim(0,150) +
+           #ylab(" ")+
+           #ggtitle(expression(bold(paste("E. One sided tests on randomized events"))))+
+           theme(plot.title = element_text(face="bold"))+
+           theme(axis.text=element_text(size=10,face="bold"))
+  
+  
+  ## Preparing final plots and arranging them
+  plot4B <- ggdraw() +
+    draw_plot(plot4BM)+
+    draw_plot(plot4CM, x = .5, y = .5, width = .5, height = .5)
+ 
+  plot4C <- ggdraw() +
+    draw_plot(plot4DM)+
+    draw_plot(plot4EM, x = .5, y = .5, width = .5, height = .5)
+ 
+  # grid.arrange(plot4AM,grid.arrange(plot4BM,plot4CM,plot4DM,plot4EM,nrow = 2, ncol=2)) 
+  gridExtra::grid.arrange(plot4AM,plot4B,plot4C,nrow = 3) 
+
+```
+
+
+```{r Analyses_on_standardized_lambda_transformed_3879_trees, eval=F, echo=F, message=F, warning=F}
+
+  ##summarizing
+   summary_brownian_3879 <- bind_rows(lapply(standarized_new_Brownian,summary_function))
+   Contrast_brownian_3879_trees <- summary_brownian_3879[which(!is.na(summary_brownian_3879$pic_Tau)),]
+
+  ## Considering the relevant columns and removing the NA data
+  Contrast_brownian_3879_trees <- na.omit(Contrast_brownian_3879_trees[c(6,18:19,22:24)])
+  Contrast_brownian_3879_trees$Event <- factor(Contrast_brownian_3879_trees$Event, levels=c("Speciation", "Duplication"))
+
+ # Separating speciation and duplication contrast data with no age limit
+  speciation_pic_tau_3879 <- speciation_contrast(Contrast_brownian_3879_trees,'pic_Tau')
+  duplication_pic_tau_3879 <- duplication_contrast(Contrast_brownian_3879_trees,'pic_Tau')
+  
+   ## Performing test 
+   wilcox_test_new_BM_trees_no_limit <- two_tailed_wilcox(duplication_pic_tau_3879,speciation_pic_tau_3879)
+  
+    ##Making data frame for plotting
+  Frame_3879<-plot_frame(Contrast_brownian_3879_trees,"pic_Tau","type1")
+  
+  ## Median data
+  median_3879<-median_df(Frame_3879)
+
+  ## Plotting the data
+  boxplot_new(Frame_3879,wilcox_test_new_BM_trees_no_limit,median_3879,"type1")
+  
+  
+```
+
+
+```{r Fig5, dpi=600, fig.width=8, fig.height=3.5, fig.cap= paste("**Fig 5**: The ortholog conjecture test on BM trees passing diagnostic tests. (A) Analysis of ", length(BM_tree_diagnostic_test_final), " trees passing the diagnostic tests of BM. (B) Using 3144 out of 3151 calibrated BM trees that passed diagnostic tests following branch length transformation. *P* values are from two-tailed Wilcoxon tests. Values insides boxplots are median PIC values for the corresponding events. Pure speciation trees were not excluded.")}
+
+  ## summerising the results for newly identified BM trees 
+  summary_new_BM_tree <- bind_rows(lapply(BM_tree_diagnostic_test_final,summary_function))
+  Contrast_brownian_new_trees <- summary_new_BM_tree[which(!is.na(summary_new_BM_tree$pic)),]
+  Contrast_brownian_new_trees <- na.omit(Contrast_brownian_new_trees[c(6,18:19,22:24)])
+  Contrast_brownian_new_trees$Events <- factor(Contrast_brownian_new_trees$Event, levels=c("Speciation", "Duplication"))
+  ## We checked for maximum nodes contrasts for these 2412 Brownian trees, and it was less than 0.5
+  
+  ## We use a node age limit of oldest speciation age
+  BM_contrast_296 <- Contrast_brownian_new_trees[which(Contrast_brownian_new_trees$node_age <= 296),]
+  BM_contrast_296$Events <- factor(BM_contrast_296$Event, levels=c("Speciation", "Duplication"))
+  
+  # Separating speciation and duplication contrast data with an age limit of 296 My
+  speciation_contrast_new_296 <- speciation_contrast(BM_contrast_296,'pic') 
+  duplication_contrast_new_296 <- duplication_contrast(BM_contrast_296,'pic')
+  
+  # Separating speciation and duplication contrast data with no age limit
+  speciation_contrast_new_all <- abs(speciation_contrast(Contrast_brownian_new_trees,'pic')) 
+  duplication_contrast_new_all <- abs(duplication_contrast(Contrast_brownian_new_trees,'pic')) 
+   ## Performing test 
+   wilcox_test_new_trees_296 <- two_tailed_wilcox(duplication_contrast_new_296,speciation_contrast_new_296)
+   wilcox_test_new_trees_all <- two_tailed_wilcox(duplication_contrast_new_all,speciation_contrast_new_all)
+  
+  
+  ## Making a  dataframe for plotting
+  data_plot <- data.frame(pic=NA, group=NA, Event=NA) ## declaring data frame
+  data_plot <- rbind(data_plot, data.frame(pic=abs(BM_contrast_296$pic),  group="Age <= 296 My", Event=BM_contrast_296$Events))
+  data_plot <- rbind(data_plot, data.frame(pic=abs(Contrast_brownian_new_trees$pic),  group="No age limit", Event=Contrast_brownian_new_trees$Events))
+  data_plot <- data_plot[-1,]
+  data_plot$Event <- factor(data_plot$Event, levels=c("Speciation", "Duplication"))
+ 
+  ## Median values 
+  median_data<-NULL
+  median_data<-data_plot %>% 
+  group_by(group,Event) %>% 
+  summarise(Median=median(pic))
+  median_data$pic.round<-round(median_data$Median,4)
+
+  ## Plotting the data
+  dodge <- position_dodge(width = 0.5)
+  
+   plot5A<- ggplot(data_plot, aes(group, pic, fill = Event)) +
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+   # geom_text(data = median_data, aes(label = pic.round),fontface = 4,hjust=0.5,vjust =-2, color="black")+
+    xlab(NULL) +
+    ylab(expression(bold(paste("PIC of ",tau)))) +
+    coord_cartesian(ylim=c(0, 0.05)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position="none") +
+    theme(axis.text.y = element_text(size=10,face="bold")) +
+    theme(axis.text.x = element_text(size=10,face="bold")) +
+    theme(plot.title = element_text(face = "bold"))+
+    ggtitle("A. BM trees without transformation")+
+    annotate("text", x=1.00, y=0.04, label=wilcox_test_new_trees_296, fontface=4)+ 
+    annotate("text", x=1.98, y=0.04, label=wilcox_test_new_trees_all, fontface=4)+
+    annotate("text", x=0.87, y=0.01, label=median_data$pic.round[1], fontface=2, size=3)+
+    annotate("text", x=1.13, y=0.01, label=median_data$pic.round[2], fontface=2, size=3)+
+    annotate("text", x=1.87, y=0.01, label=median_data$pic.round[3], fontface=2, size=3)+
+    annotate("text", x=2.13, y=0.01, label=median_data$pic.round[4], fontface=2, size=3)
+   
+   
+  ## Analysis on branch tranformed empirical 3144 trees
+  Empirical_data_br_transformed_3144_trees<-summary_br_transformed(BM_tree_all_br_transformed,"Event")
+ 
+  Pval_3144_trees<-Wilcoxon_2_sided_br_transform(Empirical_data_br_transformed_3144_trees)
+   
+  ##Making data frame for plotting
+  Frame5B<-plot_frame(Empirical_data_br_transformed_3144_trees,"pic","type2")
+  
+  ## Median data
+  median_data5B<-median_df(Frame5B)
+  
+  ## Boxplots
+  plot5B<- boxplot_new(Frame5B,Pval_3144_trees,median_data5B,"type2")+ ylab(" ")+    
+           ggtitle(expression(bold(paste("B. BM trees with transformation"))))+
+           theme(legend.position = c(0.85,0.85)) + 
+           theme(legend.text=element_text(size=8))+ 
+           theme(plot.title = element_text(face="bold"))+
+           theme(legend.title=element_blank(),legend.position=c(0.8,0.9))+
+           theme(legend.text=element_text(size=10)) +
+           annotate("text", x=0.87, y=0.042, label=median_data5B$pic.round[1], fontface=2, size = 4)+
+           annotate("text", x=1.13, y=0.046, label=median_data5B$pic.round[2], fontface=2, size = 4)
+  
+  
+  ##Plotting the result
+  grid.arrange(plot5A,plot5B,nrow=1,ncol=2)  
+ 
+```
+
+### Discussion
+
+
+We agree with Dunn et al. [@RN760] that evolutionary comparisons should be done considering a phylogenetic framework when possible. However, this does not imply that phylogenetic independent contrasts can be applied easily to phylogenomics data and questions. To get a clear picture, we limited our study to the same phylogenetic gene trees used by Dunn et al. [@RN760]. Our reanalysis identified problems generated during the time calibration of duplication nodes of pruned trees for which no external time references are available, and with non respect of the hypothesis of Brownian motion. The strongest bias was for duplication nodes preceding the oldest speciation nodes. This, in turn, introduced several biases in their analyses, and influenced their results. When we identified and controlled for such biases, PIC results changed to support the ortholog conjecture, consistent with our previous pairwise analysis [@RN762] on the same $\tau$ data.
+
+To date, few studies have applied phylogenetic comparative methods to understand the effect of gene duplication on functional evolution [@RN760;@RN863;@RN864;@RN865;@RN869]. However, none before Dunn et al. applied phylogenetic method to contrast speciation and duplication events on the same time calibrated trees using a single continuous trait. In line with previous studies [@RN782;@RN851], we explored whether the application of a phylogenetic method might inflate errors (e.g. rejection of the null hypothesis in null condition, Figs 1A and 1B) if applied without thorough testing for the fundamental assumptions of the method. Assumptions of proper branch length information and of Brownian model of trait evolution are related, so that modifications of branch lengths can change the evolutionary model [@RN782;@RN851]. We find that branch length calibration is mostly inaccurate for old duplication events (duplication events prior to the oldest speciation event in the data) (S2 Fig). Use of such node contrasts causes a strong rise in expected variance for duplication events compared to the speciation events (S4 Fig). This may bring about lack of statistical power to detect the signal of ortholog conjecture, when in reality the signal is present, and even bias towards a pseudo-signal. 
+
+Dunn et al. provided the hutan::picx() R function to compute PIC for OU trees. In their simulation-based function, they estimated ancestral states by the 'GLS_OUS' method using the same time calibrated phylogeny, and the expected variance for node events to standardize the trait difference of daughter nodes were also based on the biased calibrated branch lengths. Therefore, their method does not add anything specific to deal with the OU trees. This is consistent with their observation of strong correlation (R^2^ = 0.98) of contrasts obtained for BM trees by the hutan::picx and ape::pic functions. Moreover, application of PIC method without testing the model of trait evolution may produce biased result, especially when contrasts are not phylogenetically independent [@RN862]. All these factors contributed to the trend in Dunn et al.'s analysis of higher PIC for speciation than duplication events.
+
+We propose two different strategies to deal with such biases. First, we used node age limits along with diagnostic tests [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816]to remove issues with branch length inaccuracies for older duplication events, and to ensure contrasts independence. We thus found some support for the ortholog conjecture, although with small effect size difference (Figs 3A, 4A and 5). The reliability of our inference was validated by two different randomization tests, which confirmed the fact that our result was not due to biases in the data or analysis (S7A-S7D Figs, Figs 4B and 4C). In view of the fact that two of the three assumptions of PIC applicability were violated in our dataset, we applied branch length transformation along with diagnostic tests as our second strategy, which has been recommended in such cases [@RN782;@RN851]. We then obtained substantial support for the ortholog conjecture (Figs 3B-3D, S10 and S12A Figs).
+
+
+```{r Analyses_on_sensitivity to calibration times, eval=T, echo=F, message=F, warning=F}
+
+  #randomly selecting any replicate number from 1 to 10
+  num<-as.numeric(sample(1:10,1))
+
+  ##Expected variance for speciation or duplication for that random number
+  Speciation_var_noised<- nodes_contrast_noised_list[[num]]$var_exp[which( nodes_contrast_noised_list[[num]]$Event=="Speciation")]
+  Duplication_var_noised<- nodes_contrast_noised_list[[num]]$var_exp[which( nodes_contrast_noised_list[[num]]$Event=="Duplication")]
+   
+  ## Difference in expected variance
+  test_var_noised<-two_tailed_wilcox(Speciation_var_noised,Duplication_var_noised)
+  
+  
+```
+
+Dunn et al. [@RN760] performed several analyses to take into account issues with branch lengths, although they appear not to have been sufficient, as shown by randomization tests. They added random noise in the speciation calibration time points, and extended terminal branch lengths by 7 My to account for within-species variance to test sensitivity of their observations. These modifications appear insufficient when there are so vast differences in branch lengths [@RN853;@RN854;@RN855;@RN856;@RN852;@RN858;@RN859]. To deal with sensitivity to calibration time, they drew a new date for each speciation node from a normal distribution with the mean of the original date by adding an SD of 0.2 times of the original date. This can help to deal with the uncertainty of speciation times but cannot help to solve the calibration bias issues of the duplication events. Hence, the extremely large expected variance for duplication events than for speciation events persists in all the 10 replicates even after such modifications (Wilcoxon two sided test, `r test_var_noised`). Since they did not control for phylogenetic independence of the contrasts, and there was higher expected variance of the duplication events, they always obtained lower PIC of duplication events. Due to such phylogenetic internal parameter dependence, their PIC analyses produced similar trends empirically or with randomized data. Analyses with removal of older duplication nodes or by considering duplication contrasts which fall within the range of expected variance of speciation events were not sufficient to correct for this bias. At a minimum, diagnostic plot tests appear necessary to assess adequate standardization of contrasts with necessary additional controls according to the evolutionary model before drawing any inference [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816;@RN851].  
+
+Empirical support for the ortholog conjecture has been mixed, with some studies supporting it [@RN771;@RN770;@RN790;@RN793;@RN794;@RN762;@RN792], and a few failing to do so [@RN760;@RN774;@RN870]. Our results provide additional support for the ortholog conjecture using large-scale genome wide tissue specificity data in a phylogenetic framework after controlling for bias. Due to lack of detailed functional information, many studies are still limited to gene expression data as a proxy of function. Recently, using functional replaceability assay, experimental studies [@RN857;@RN861] have shown that orthologous genes can be swapped between essential yeast genes and human, although this is rarely the case for all the members of expanded human gene families [@RN861], validating one prediction of the ortholog conjecture.
+
+These analyses are mainly based on gene trees dominated by small scale duplication events. In these trees, the age of the same duplication clade is never fixed. Use of time calibrated whole genome duplication trees could be beneficial in this regard. Since the approximate time period of whole genome duplications are known, we can test the hypothesis more conveniently by avoiding use of any node age limits on whole genome duplication events for those trees.
+
+
+
+\pagebreak
+
+### Methods 
+
+
+__Resource details for reanalyses__
+
+Our reanalyses are based on 8520 annotated (with the events: speciation, duplication and NA), pruned, and time calibrated ENSEMBL Compara v.75 [@RN806] gene trees, having at least 4 tips with non null trait data. They were obtained from Dunn *et al* [@RN760]. Like them [@RN760], we used a subset of precomputed $\tau$ data (as trait) of 8 vertebrate species from the study of Kryuchkova-Mostacci and Robinson-Rechavi [@RN762]. Kryuchkova-Mostacci and Robinson-Rechavi [@RN762] computed $\tau$ and mean gene expression levels by following the method of Yanai et al. [@RN215]. The subset of data was based on the RNA-seq data provided by Brawand et al. [@RN838] for 6 tissues. We used the same random seed number as in [@RN760] to reproduce the simulation results for reanalysis. All reproduced data of Dunn et al. were stored in the "manuscript_dunn.RData" file (https://doi.org/10.5281/zenodo.3604104). We used the results stored in the 'data' or 'phylo' slot of the trees for further analyses. To differentiate our own function from theirs [@RN760], we remodified the original function script of Dunn et al. from "functions.R" to "functions_Dunn.R". Some of the analyses were time consuming, so we made a separate script "Premanuscript_run_TM.R" to run before knitting the markdown file. We stored the outputs in "Data_TMRR_latest.rda" file (https://doi.org/10.5281/zenodo.3604104) and loaded it during our analyses. All the details of different functions were provided inside the script. We supply all the previously stored data (to reduce computation time during reproduction of result) and function files including our own ("function_TM_new.R") with this manuscript. All scripts are available on GitHub: https://github.com/tbegum/Testing_the_ortholog_conjecture. 
+
+We used phylosig function() of "phytools" package [@RN804] to identify trees with phylogenetic signal (*P* < 0.05) using Blomberg's K [@RN819;@RN804;@RN800].
+
+Analyses and plotting were performed in R version 3.5.1 [@Rcore] using treeio [@RN823], geiger [@RN796], stringr [@RN900],  digest[@RN909], dplyr [@RN908], tidyverse [@RN904], ggrepel[@RN910], gtools [@RN902], ggplot2 [@RN903], cowplot [@RN905], easyGgplot2 [@RN901], gridExtra [@RN906], and png [@RN907] libraries.
+
+__Randomization test of $\tau$ values__
+
+For each tree, we used $\tau$ data (column name "Tau" in each tree 'data' object) across the tips to carry out our randomization test. To randomize we permuted the actual $\tau$ data  without altering internal node events. The pic() function of the "ape" package [@RN803] was used to compute PIC of nodes  for each tree using permuted $\tau$ of tips. For each run, we compared the contrasts of speciation and duplication events of the whole set of randomized trees to estimate difference in event contrasts based on Wilcoxon signed rank test. For 100 or 1000 runs, we repeated the above process 100 or 1000 times to obtain a distribution plot of 100 or 1000 independent *P* values.
+
+__Randomization test of node events__
+
+Some of the speciation nodes had daughters with same clade names in the gene trees we used for our study. Dunn et al. changed such node events to "NA" to avoid problems during time calibration of the trees. Such annotated node event information ("Speciation", "Duplication", "NA") for each tree was available as "Event" in the tree 'data' slot. To randomize, we permuted the internal node events (added as column name "event_new" in the 'data' slot) by maintaining the actual proportion of events for each tree. Then, we used the PIC of actual $\tau$ at tips to estimate contrasts difference between newly assigned speciation and duplication node events by Wilcoxon rank tests. For 100 or 1000 independent runs, we repeated the same procedure to obtain 100 or 1000 independent *P* values.
+
+
+__Checking for contrasts standardization by diagnostic plot tests__
+
+Dunn et al. used model-fitting with $\Delta$AIC~BM~ = AIC~BM~ - min(AIC~BM~,AIC~OU~) and $\Delta$AIC~OU~ = AIC~OU~ - min(AIC~BM~,AIC~OU~) to identify BM, and OU trees. They applied $\Delta$AIC~BM~ < 2, and $\Delta$AIC~OU~ < 2, as the relative supports for the BM, and OU models. We used several additional diagnostic tests on those trees to identify adequate independent nodes contrast standardization before drawing any inference by PIC method, as recommended in several studies [@RN851;@RN779;@RN781;@RN782;@RN780;@RN783]. The most usual method for contrasts standardization is to check a correlation between the absolute values of standardized contrasts and their expected standard deviations (i.e. square root of sum of branch lengths) [@RN816;@RN781;@RN782]. Under Brownian motion, there should be no correlation. This test and the correlation between the absolute values of standardized contrasts and the logarithm of their node age are model diagnostic plot tests in the caper ("Comparative Analyses of Phylogenetics and Evolution in R") package [@RN781;@RN813;@RN825; @Rcore]. We used both of them by using the "crunch" algorithm of the caper package, which implements the methods originally provided in CAIC [@RN781; @RN813;@RN825; @Rcore]. Correlation of node heights with absolute values of contrasts has also been reported to be a reliable indicator of deviation from the Brownian model [@RN783]. Hence, we computed node height for each node in a tree using the ape package [@RN803]. We also used the correlations of node height and node depth to the absolute value of nodes contrasts to rule out significant trend in any of the 4 tests. We used *P* < 0.05 to assess a significant correlation for the diagnostic plot tests. A significant trend (positive or negative) indicates phylogenetic dependence for that tree [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816], and we removed those trees from our analysis. Contrast calculation on negative branch lengths is not desirable, so we removed trees with negative branch lengths before applying the crunch() function. To assure that nodes contrast standardization is independent of the phylogeny, we considered sets of trees passing all 4 diagnostic tests for further  analyses. 
+
+
+__Branch length transformation__  
+
+Transformation of branch lengths has been proposed to restore the performance of PIC method when the true evolutionary model is not BM or unknown, and when branch lengths are in error [@RN816;@RN782;@RN851]. In such cases, branch lengths are transformed by raising a family power of branch length ranging from 0 to 2 in the intervals of 0.1, plus the log~10~ of the branch lengths [@RN782;@RN851]. For each transformation, the program computes the correlation between the absolute value of the standardized contrasts and their standard deviations until no significant correlation is obtained, to ensure adequate independent contrasts standardization [@RN782;@RN851]. Finally, we excluded trees for which adequate contrasts standardization is not achieved even after raising the branch length power to 2 [@RN782;@RN851].
+
+
+### Acknowledgements
+
+We sincerely acknowledge Martha Liliano Serranno Serranno for initial help with the phylogenetic independent contrast method. We thank Nicolas Salamin, Julien Wollbrett, Jialin Liu, Sebastien Moretti, Sara Fonseca Costa, Kamil Jaron and all the members of the Robinson-Rechavi group for their help and useful discussions. We also acknowledge Cassey Dunn for his initial help in reproducing their results. Parts of the computations were performed at the Vital-IT (http://www.vital-it.ch) Center for high-performance computing of the SIB Swiss Institute of Bioinformatics.
+
+\pagebreak
+
+## Supporting Information
+
+
+```{r Analysis_all_trees_with_different_random_seed_number,eval=T, echo=F, message=F, warning=F}
+ 
+ 
+ treedata <- function(tree)
+ {
+  if(class(tree) == "treedata") 
+  {
+    tree@data <- tidytree::as_tibble(tree@data)
+  }
+  ## Reading tree data slot
+  return(tree)
+ }
+ 
+  ## Applying the function on calibrated trees
+  gene_trees_calibrated_new <- mclapply(gene_trees_calibrated,treedata, mc.cores = cores)
+  
+  ## Null simulation using Dunn et al. function
+  ## Changing random seed number
+  set.seed(123)
+  
+  gene_trees_sim_null_8520 <- foreach( tree=gene_trees_calibrated_new ) %dopar% 
+sim_tau( tree )
+  gene_trees_sim_null_8520 %<>% add_pics_to_trees()
+  
+  ## OC simulation using Dunn et al. function
+  set.seed(123)
+  gene_trees_sim_oc_8520 <- foreach( tree=gene_trees_calibrated_new ) %dopar% 
+sim_tau( tree, dup_adjust=2)
+  gene_trees_sim_oc_8520 %<>% add_pics_to_trees()
+  
+	## Making a dataframe by combining data slots of all these 8520 trees
+	sim_null_contrast_8520_new <- bind_rows(lapply(gene_trees_sim_null_8520,summary_function))
+	sim_oc_contrast_8520_new <- bind_rows(lapply(gene_trees_sim_oc_8520,summary_function))
+	
+	## Extracting the columns of event and PIC data from null and OC simulation result of trees with phylogenetic signals
+  null_data_8520_new <- na.omit(sim_null_contrast_8520_new[c(6,20)])
+  null_data_8520_new$label <- "Null simulation"
+  OC_data_8520_new <- na.omit(sim_oc_contrast_8520_new[c(6,20)])
+  OC_data_8520_new$label <- "OC simulation"
+  
+  ## Extracting speciation and duplication PICs from null and OC simulation of all calibrated trees
+  speciation_null_8520 <- null_data_8520_new$pic[which(null_data_8520_new$Event=="Speciation")]
+  duplication_null_8520 <- null_data_8520_new$pic[which(null_data_8520_new$Event=="Duplication")]
+  speciation_oc_8520 <- OC_data_8520_new$pic[which(OC_data_8520_new$Event=="Speciation")]
+  duplication_oc_8520 <- OC_data_8520_new$pic[which(OC_data_8520_new$Event=="Duplication")]
+  
+  ## Performing Wilcoxon tests on null and OC simulation data of all calibrated trees
+  wilcox_2_tailed_null_8520_new <- two_tailed_wilcox(speciation_null_8520,duplication_null_8520)
+  wilcox_2_tailed_oc_8520_new<- two_tailed_wilcox(speciation_oc_8520,duplication_oc_8520)
+
+```
+
+
+```{r Fig_S1, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S1 Fig: Repeating simulations on all calibrated trees with different random seed number. *P* values are from Wilcoxon two-tailed tests. Simulations with different seed number did not change the trend of results as observed in Fig 1A.")}
+
+  ## Dataframe is built based on 2896 trees with phylogenetic signals
+  simulation_8520_new <- rbind(null_data_8520_new, OC_data_8520_new)
+ 
+  ### Generating plot on simulation data for all calibrated trees 
+  dodge <- position_dodge(width = 0.51)
+  ggplot(simulation_8520_new,aes(x=label, y=pic, fill=Event)) + 
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+    xlab(NULL) +
+    ylab(expression(bold("Phylogenetic Independent Contrasts (PICs)"))) +
+    coord_cartesian(ylim=c(0, 0.05)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.9),legend.text=element_text(size=8)) +
+    theme(axis.text.y= element_text(size=10)) +
+    theme(axis.text.x = element_text(size=10,face="bold"))+
+    ggtitle(paste0("Plot on 8520 calibrated trees"))+
+    theme(plot.title = element_text(face = "bold"))+
+    annotate("text", x = 1.04, y = 0.035, label= wilcox_2_tailed_null_8520_new, fontface=4) +
+    annotate("text", x = 1.98, y = 0.035, label= wilcox_2_tailed_oc_8520_new, fontface=4)
+  
+
+```
+
+
+
+```{r Fig_S2, dpi=400,fig.width=8, fig.height=6, fig.cap= paste("S2 Fig: An example of a calibrated gene trees used by Dunn et al. in their study. The blue nodes represent the speciation nodes while the red nodes are duplication nodes. For nodes with no number the event is assigned as NA by the authors [@RN760]. Since, the duplication time is unknown, the tree is calibrated based on speciation node ages. Notice that this gives an unreasonably large estimated date for the ancient duplication, resulting in higher expected variance and abnormally low contrast for the corresponding node event. This example is to demonstrate that it is often risky to use such nodes to infer the result of phylogenetic method that intends to study the effect of gene duplication.")}
+
+  ## One example tree
+  tree <- gene_trees_pic[[247]]
+  ntips <- length(tree@phylo$tip.label) ## Number of tips for the tree
+  
+  ##Identifying internal speciation and duplication nodes from the 'tree@data' object
+  nodes_duplication <- tree@data$node[which(tree@data$Event=="Duplication")]
+  nodes_speciation <- tree@data$node[which(tree@data$Event=="Speciation" & tree@data$node > ntips)] 
+  
+  ## Plotting the tree
+  plotTree(tree@phylo, mar=c(5,2,2,2))
+  axisPhylo()
+  nodelabels(node=nodes_speciation,frame = "none", col="blue", font=2)
+  nodelabels(node=nodes_duplication,frame = "none", col="red", font=2)
+  mtext("An example of time calibrated trees for two different events",font=2,side=3, line=-1, outer = TRUE)
+  mtext("Million Years (My)",font=2,side=1, line=-2, outer = TRUE)
+  
+  
+```
+
+
+```{r More_analysis_trees_with_strong_phylogenetic_signal,eval=T, echo=F, message=F, warning=F}
+ 
+  ## Removing null and OC simulation trees associated with negative branch lengths
+	gene_trees_pic1_sim_null <- gene_trees_sim_null[-c(trees_negative)]
+  gene_trees_pic1_sim_oc <- gene_trees_sim_oc[-c(trees_negative)]
+
+  ## Index number of trees with strong phylogenetic signal
+  index_signal_tree <- signal_tree$tree_number[which(signal_tree$Pvalue_Blomberg< 0.05 & signal_tree$K_effecient > 0.551)] 
+  
+  ## Collecting null and OC simulation trees associated with phylogenetic signals (P <0.05)
+  tree_sim_null_1135 <- gene_trees_pic1_sim_null[c(index_signal_tree)]
+  tree_sim_oc_1135 <- gene_trees_pic1_sim_oc[c(index_signal_tree)]
+  
+  #gene_trees_sim_null_test <- foreach( tree=tree_sim_null_1135 ) %dopar% sim_tau( tree )
+  #gene_trees_sim_null_test %<>% add_pics_to_trees()
+  
+	## Making a dataframe by combining data slots of all these 1135 trees
+	sim_null_contrast_1135 <- bind_rows(lapply(tree_sim_null_1135,summary_function))
+	sim_oc_contrast_1135 <- bind_rows(lapply(tree_sim_oc_1135,summary_function))
+	
+	## Extracting the columns of event and PIC data from null and OC simulation result of trees with phylogenetic signals
+  null_data.1135 <- na.omit(sim_null_contrast_1135[c(6,20)])
+  null_data.1135$label <- "Null simulation"
+  OC_data.1135 <- na.omit(sim_oc_contrast_1135[c(6,20)])
+  OC_data.1135$label <- "OC simulation"
+  
+  ## Extracting speciation and duplication PICs from null and OC simulation of trees with phylogenetic signals
+  speciation_null_1135 <- null_data.1135$pic[which(null_data.1135$Event=="Speciation")]
+  duplication_null_1135 <- null_data.1135$pic[which(null_data.1135$Event=="Duplication")]
+  speciation_oc_1135 <- OC_data.1135$pic[which(OC_data.1135$Event=="Speciation")]
+  duplication_oc_1135 <- OC_data.1135$pic[which(OC_data.1135$Event=="Duplication")]
+  
+  ## Performing Wilcoxon tests on null and OC simulation data of trees with strong phylogenetic signals
+  wilcox_2_tailed_null_1135 <- two_tailed_wilcox(speciation_null_1135,duplication_null_1135)
+  wilcox_2_tailed_oc_1135 <- two_tailed_wilcox(speciation_oc_1135,duplication_oc_1135)
+
+```
+
+
+```{r Fig_S3, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S3 Fig: Simulation analyses on 1135 trees with strong phylogenetic signals. *P* values are from Wilcoxon two-tailed tests. Dunn et al. used a cutoff of K > 0.551 to identify trees with strong phylogenetic signals. However, trees with higher K statistic can reflect trees with no phylogenetic signal when corresponding *P* values are non-significant. Considering both K statistic and *P* value, we found similar trends as was observed with 2082 trees.")}
+
+  ## Dataframe is built based on 1135 trees with strong phylogenetic signals
+  simulation_1135_new <- rbind(null_data.1135, OC_data.1135)
+ 
+  ### Generating plot on simulation data for 1135 trees with strong phylogenetic signals 
+  dodge <- position_dodge(width = 0.51)
+  ggplot(simulation_1135_new,aes(x=label, y=pic, fill=Event)) + 
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+    xlab(NULL) +
+    ylab(expression(bold("Phylogenetic Independent Contrasts (PICs)"))) +
+    coord_cartesian(ylim=c(0, 0.05)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.9),legend.text=element_text(size=8)) +
+    theme(axis.text.y= element_text(size=10)) +
+    theme(axis.text.x = element_text(size=10,face="bold"))+
+    ggtitle(paste0("Plot on trees with strong phylogenetic signals"))+
+    theme(plot.title = element_text(face = "bold"))+
+    annotate("text", x = 1.04, y = 0.035, label= wilcox_2_tailed_null_1135, fontface=4) +
+    annotate("text", x = 1.98, y = 0.035, label= wilcox_2_tailed_oc_1135, fontface=4)
+  
+
+```
+
+
+
+```{r Fig_S4, dpi=400,fig.width=8, fig.height=7, fig.cap= paste("S4 Fig: Re-analyses of expected variances of calibrated trees considered by Dunn et al. The expected variance plots of (A) all calibrated trees, and (B) trees with strong phylogenetic signal. The dotted line represents the mean expected variance of the events. These plots suggest that the use of duplication nodes preceding ancient speciation nodes for calibration is often erroneous and should be avoided.")}
+
+    
+  exp_var_tre <- paste0("A. Expected variance plot of ",length(gene_trees_calibrated), " trees", sep="")
+	exp_var_trees <- paste0("B. Expected variance plot of ",length(trees_new), " trees", sep="")
+  
+	 ## Histogram plots
+	 plotS4A <- ggplot2.histogram(data=check_df1, xName='exp_var',
+    groupName='Event',legendPosition="right",
+    alpha=0.8, addDensity=TRUE,
+    addMeanLine=TRUE, meanLineColor=c("#F8766D","#00BFC4"), meanLineSize=1) +
+    xlim(0, 1800)+
+    theme_classic() +
+    ggtitle(paste0(exp_var_tre)) +
+    theme(plot.title = element_text(face = "bold"))+
+    xlab("Expected variance") + 
+    ylab("Density") +
+    theme(legend.title=element_blank(),legend.position=c(0.7,0.8),legend.text=element_text(size=8)) +
+    theme(plot.title = element_text (face="bold", 
+                              colour="black", lineheight=1.0),
+          axis.title.x=element_text( face="bold",
+                              colour="black", hjust=0.5),
+          axis.title.y=element_text(face="bold",
+                              colour="black", vjust=0.5, angle=90))
+
+
+  plotS4B <- ggplot2.histogram(data=check_df, xName='exp_var',
+    groupName='Event',legendPosition="right",
+    alpha=0.8, addDensity=TRUE,
+    addMeanLine=TRUE, meanLineColor=c("#F8766D","#00BFC4"), meanLineSize=1) +
+    xlim(0, 1800)+
+    theme_classic() +
+    ggtitle(paste0(exp_var_trees)) +
+    theme(plot.title = element_text(face = "bold"))+
+    xlab("Expected variance") + 
+    ylab("Density") +
+    theme(legend.title=element_blank(),legend.position=c(0.7,0.8),legend.text=element_text(size=8)) +
+    theme(legend.position="none")+
+    theme(plot.title = element_text (face="bold", 
+                              colour="black", lineheight=1.0),
+          axis.title.x=element_text( face="bold",
+                              colour="black", hjust=0.5),
+          axis.title.y=element_text(face="bold",
+                              colour="black", vjust=0.5, angle=90))
+
+    grid.arrange(plotS4A,plotS4B,nrow = 2) 
+  
+
+```
+
+
+
+```{r Fig_S5, dpi=400,fig.width=9, fig.height=8, fig.cap="S5 Fig: *P* value distribution plots after 100 independent runs on each set of trees. Wilcoxon two-tailed test with 95% confidence interval was used to compare the speciation and duplication contrasts after randomization tests. (A) and (B) applied to trees with at least one speciation and one duplication event. (C) and (D) applied to trees with strong phylogenetic signal. (A) and (C) randomization of trait ($\\tau$) over the trees. (B) and (D) randomization of internal node events. The inset plots show *P* values adjusted with Benjamini-Hochberg [@RN833;@RN835]. Supporting our observations of Figs 2A and 2C, all the plots confirm that the empirical result of Dunn et al. [@RN760] is not different from randomized test results."}
+
+  fancy_scientific <- function(l) {
+     # turn in to character string in scientific notation
+     l <- format(l, digit=1, scientific = TRUE)
+  }
+  
+  ## Dataframe of P values for 5479 trees with at least one speciation and one duplication events 
+  pval_dataframe_5479 <- data.frame(pval_tau=NA,pval_event=NA,tree_set=NA)
+  pval_dataframe_5479 <- rbind(pval_dataframe_5479, data.frame(pval_tau=pval_all,pval_event=pval_all_events,tree_set="Filtered_tree"))
+  pval_dataframe_5479 <- pval_dataframe_5479[-1,]
+  pval_dataframe_5479$adj.ptau <- p.adjust(pval_dataframe_5479$pval_tau,method="BY")
+  pval_dataframe_5479$adj.pevent <- p.adjust(pval_dataframe_5479$pval_event,method="BY")
+  
+  
+  ## Dataframe of P values for 2082 trees with strong phylogenetic signals
+  pval_dataframe_2082 <- data.frame(pval_tau=NA,pval_event=NA,tree_set=NA)
+  pval_dataframe_2082 <- rbind(pval_dataframe_2082, data.frame(pval_tau=pval_2082,pval_event=pval_2082_events,tree_set="Phylosig_tree"))
+  pval_dataframe_2082 <- pval_dataframe_2082[-1,]
+  pval_dataframe_2082$adj.ptau <- p.adjust(pval_dataframe_2082$pval_tau,method="BY")
+  pval_dataframe_2082$adj.pevent <- p.adjust(pval_dataframe_2082$pval_event,method="BY")
+  
+  
+  ## Main plots on P value distribution after 1000 runs
+  plotS5AM <- histo_plot(pval_dataframe_5479,'pval_tau','tree_set')
+  plotS5AM <- plotS5AM +
+           #xlim(-0.01,0.01) +
+           ylim(0,100) +
+           ggtitle(expression(bold(paste("A. Randomized trait, ", tau," using 5479 trees"))))+
+           theme(plot.title = element_text(face="bold"))+
+           theme(axis.text=element_text(size=10,face="bold"))+
+           scale_x_continuous(limits = c(-0.001,0.05), labels = fancy_scientific)
+ 
+  plotS5BM <- histo_plot(pval_dataframe_5479,'pval_event','tree_set')
+  plotS5BM <- plotS5BM + 
+           ylim(0,100) +
+           ylab(" ")+
+           theme (axis.title.y = element_blank())+
+           ggtitle(expression(bold(paste("B. Randomized events using 5479 trees"))))+
+           theme(plot.title = element_text(face="bold"))+
+           theme(axis.text=element_text(size=10,face="bold"))+
+           scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)
+ 
+  plotS5CM <- histo_plot(pval_dataframe_2082,'pval_tau','tree_set')
+  plotS5CM <- plotS5CM + 
+          ylim(0,100) +
+          ggtitle(expression(bold(paste("C. Randomized trait, ", tau," using 2082 trees"))))+
+          theme(plot.title = element_text(face="bold"))+
+          theme(axis.text=element_text(size=10,face="bold")) +
+          scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)
+  
+  plotS5DM <- histo_plot(pval_dataframe_2082,'pval_event','tree_set')
+  plotS5DM <- plotS5DM +
+           ylim(0,100) +
+           ylab(" ")+
+           theme (axis.title.y = element_blank())+
+           ggtitle(expression(bold(paste("D. Randomized events using 2082 trees"))))+
+           theme(plot.title = element_text(face="bold"))+
+           theme(axis.text=element_text(size=10,face="bold"))+
+           scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)
+  
+  
+  ##Inset plots of P value distrubution after correction for multiple testing
+  plotS5AI <- histo_plot(pval_dataframe_5479,'adj.ptau','tree_set')+
+              #xlim(-0.1,0.1) +
+              ylim(0,100) +
+              scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+              xlab(expression(bold(paste("Adjusted ", bolditalic(P)," value"))))
+  plotS5BI <- histo_plot(pval_dataframe_5479,'adj.pevent','tree_set')+
+              ylim(0,100) +
+              scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+              xlab(expression(bold(paste("Adjusted ", bolditalic(P)," value"))))
+  plotS5CI <- histo_plot(pval_dataframe_2082,'adj.ptau','tree_set')+
+              ylim(0,100) +
+              scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+              xlab(expression(bold(paste("Adjusted ", bolditalic(P)," value"))))
+  plotS5DI <- histo_plot(pval_dataframe_2082,'adj.pevent','tree_set')+
+              ylim(0,100) +
+              scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+              xlab(expression(bold(paste("Adjusted ", bolditalic(P)," value"))))
+  
+  ##Drawing subplots
+  plotS5A <- ggdraw() +
+    draw_plot(plotS5AM,scale=0.9) +
+    draw_plot(plotS5AI, x = .4, y = .4, width = .5, height = .4,scale = 1.2)
+  
+  plotS5B <- ggdraw() +
+    draw_plot(plotS5BM,scale=0.9) +
+    draw_plot(plotS5BI, x = .4, y = .4, width = .5, height = .4, scale=1.2)
+  
+  plotS5C <- ggdraw() +
+    draw_plot(plotS5CM,scale=0.9) +
+    draw_plot(plotS5CI, x = .4, y = .4, width = .5, height = .4,scale=1.2)
+  
+  plotS5D <- ggdraw() +
+    draw_plot(plotS5DM,scale=0.9) +
+    draw_plot(plotS5DI, x = .4, y = .4, width = .5, height = .4,scale=1.2)
+  
+  ##Arranging and placing the plots
+  grid.arrange(plotS5A,plotS5B,plotS5C,plotS5D,nrow = 2, ncol=2)
+  
+```
+
+
+
+```{r Fig_S6, dpi=400, fig.width=8, fig.height=8, fig.cap= paste("S6 Fig: Pipeline to generate different subsets of contrasts standardized trees of $\\tau$. The symbol '-' indicates removal of trees with the corresponding mentioned criteria. Diagnostic plot tests (discussed in details in Methods) refer to the tests recommended in prior studies [@RN781;@RN782;@RN779;@RN780;@RN783;@RN816] to identify trees where contrasts standardization of trait (in this case $\\tau$) to follow BM. Pure speciation trees indicate gene trees with no duplication event. Removal of trees without old speciation means that we keep only trees where all duplication events are more recent than the oldest speciation event, i.e. trees with maximum age $\\le$ 296 My.")}
+
+ ## Loading previously generated plot
+ img <- png::readPNG("/Users/admin/Desktop/nwork/simulation/S6_fig.png")
+ grid::grid.raster(img)
+
+
+```
+
+
+```{r Additional_analyses_on_2545_BM_trees, eval=T, echo=F, message=F, warning=F}
+
+  ## Collecting tree data for all calibrated trees in a single tibble
+  tree_data_2545 <- bind_rows(lapply(standarized_pic_tree_with_dup_final,tree_data_collection))
+  tree_data_2545_high_dup_prop <- tree_data_2545[which(tree_data_2545$dup_prop > tree_data_2545$spe_prop),]
+  
+
+```
+
+
+```{r Fig_S7, dpi=400,fig.width=8, fig.height=8, fig.cap="S7 Fig: Randomization test results on contrasts standardized 2545 trees for $\\tau$. Wilcoxon tests were used to generate *P* value distribution plots by 1000 independent runs with a node age limit of 296 My. (A) For randomized $\\tau$, Wilcoxon two-tailed tests unexpectedly showed all the values were significant. (B) *P* value of 1 in all cases of Wilcoxon one-tailed test (as performed in Dunn et al.) on randomized $\\tau$. This may be due to the fact that there is an excess proportion of speciation and NA events compared to the duplication events in these trees. By permuting $\\tau$, higher $\\tau$ values of duplication events are more likely to be assigned to the speciation and NA events. Hence, this produced higher speciation contrasts, although we controlled the bias in expected variance of older duplication events by node age limits. (C) and (D) Wilcoxon two-tailed and one-tailed tests were performed by randomization of events. After randomization, the smaller proportions of duplication events were more likely to be replaced by speciation and NA events, showing greater shifts towards excess speciation contrasts. These plots show that randomization results are different from the empirical results of Fig 3A, as expected."}
+
+  ## dataframe of P value for 2545 BM trees
+  pval_2545 <- data.frame(pval_296=NA,pval_296_1sided=NA,pval_296_event=NA,pval_296_event_1sided=NA,tree_set=NA)
+  pval_2545 <- rbind(pval_2545, data.frame(pval_296=pval_2545_296_2sided,pval_296_1sided=pval_2545_296_1sided,pval_296_event= pval_2545_296_event_2sided,pval_296_event_1sided=pval_2545_296_event_1sided,tree_set="2545_tree"))
+  pval_2545 <- pval_2545[-1,]
+
+  ## Plotting the randomization data result for 2545 trees 
+  ## P value distribution plots of randomized Tau
+  plotS7AM <- histo_plot(pval_2545,'pval_296','tree_set')
+  plotS7AM <- plotS7AM + 
+            ggtitle(expression(bold(paste("A. Plot on randomized ", tau))))+
+            theme(plot.title = element_text(face="bold"))+    
+            theme(axis.text=element_text(size=10,face="bold"))+
+            scale_x_continuous(limits = c(-0.01,0.05),labels = fancy_scientific)+
+            xlab(expression(bold(paste(bolditalic(P)," value (two-tailed) with age <= 296 My")))) 
+  plotS7BM <- histo_plot(pval_2545,'pval_296_1sided','tree_set')+
+             # xlim(0.8,1.01) +
+              ggtitle(expression(bold(paste("B. Plot on randomized ", tau))))+
+              theme(plot.title = element_text(face="bold"))+     
+              theme(axis.text=element_text(size=10,face="bold"))+
+              scale_x_continuous(limits = c(0.05,1.001),labels = fancy_scientific)+
+              xlab(expression(bold(paste(bolditalic(P)," value (one-tailed) with age <= 296 My")))) 
+  
+  ## P value distribution plots of randomized events
+  plotS7CM <- histo_plot(pval_2545,'pval_296_event','tree_set')
+  plotS7CM <- plotS7CM +
+            ylim(0,150) +
+            ggtitle(expression(bold(paste("C. Plot on randomized events"))))+
+            theme(plot.title = element_text(face="bold"))+     
+            theme(axis.text=element_text(size=10,face="bold"))+
+            scale_x_continuous(labels = fancy_scientific)+
+            xlab(expression(bold(paste(bolditalic(P)," value (two-tailed) with age <= 296 My")))) 
+  
+  
+  plotS7DM <- histo_plot(pval_2545,'pval_296_event_1sided','tree_set')+
+              ylim(0,150) +
+              ggtitle(expression(bold(paste("D. Plot on randomized events"))))+
+              theme(plot.title = element_text(face="bold"))+     
+              theme(axis.text=element_text(size=10,face="bold"))+
+              scale_x_continuous(labels = fancy_scientific)+
+              xlab(expression(bold(paste(bolditalic(P)," value (one-tailed) with age <= 296 My"))))
+ 
+ gridExtra::grid.arrange(plotS7AM,plotS7BM, plotS7CM,plotS7DM,nrow = 2,ncol=2) 
+
+```
+
+
+```{r Randomization_analysis_on_different_tree_sets_after_branch_transformation, eval=T, echo=F, message=F, warning=F}
+
+ ## Randomizing Tau for our trees & contrast calculation after randomization & analysis
+  Tau_randomized_2545_tree<-lapply(standarized_pic_tree_with_dup_br_transformed,shuffling_tau)
+  Randomized_Tau_pic_2545<-mclapply(Tau_randomized_2545_tree,contrast_random,mc.cores = cores)
+  summary_randomized_Tau_2545<-summary_br_transformed_rtau(Randomized_Tau_pic_2545,"Event")
+  Pval_2545_rtau<-Wilcoxon_2_sided_br_transform(summary_randomized_Tau_2545)
+
+  Tau_randomized_2080_tree<-lapply(trees_new_br_transformed,shuffling_tau)
+  Randomized_Tau_pic_2080<-mclapply(Tau_randomized_2080_tree,contrast_random,mc.cores = cores)
+  summary_randomized_Tau_2080<-summary_br_transformed_rtau(Randomized_Tau_pic_2080,"Event")
+  Pval_2080_rtau<-Wilcoxon_2_sided_br_transform(summary_randomized_Tau_2080)
+
+  Tau_randomized_8417_tree<-lapply(gene_trees_pic_br_ransformed,shuffling_tau)
+  Randomized_Tau_pic_8417<-mclapply(Tau_randomized_8417_tree,contrast_random,mc.cores = cores)
+  summary_randomized_Tau_8417<-summary_br_transformed_rtau(Randomized_Tau_pic_8417,"Event")
+  Pval_8417_rtau<-Wilcoxon_2_sided_br_transform(summary_randomized_Tau_8417)
+  
+  
+  ## Randomizing events for our trees & analysis
+  Event_randomized_2545_tree<-lapply(standarized_pic_tree_with_dup_br_transformed,shuffling_event_new)
+  summary_randomized_event_2545<-summary_br_transformed(Event_randomized_2545_tree,"Event")
+  Pval_2545_revent<-Wilcoxon_2_sided_br_transform(summary_randomized_event_2545)
+  
+  Event_randomized_2080_tree<-lapply(trees_new_br_transformed,shuffling_event_new)
+  summary_randomized_event_2080<-summary_br_transformed(Event_randomized_2080_tree,"Event")
+  Pval_2080_revent<-Wilcoxon_2_sided_br_transform(summary_randomized_event_2080)
+  
+  
+  Event_randomized_8417_tree<-lapply(gene_trees_pic_br_ransformed,shuffling_event_new)
+  summary_randomized_event_8417<-summary_br_transformed(Event_randomized_8417_tree,"Event")
+  Pval_8417_revent<-Wilcoxon_2_sided_br_transform(summary_randomized_event_8417)
+  
+  
+```
+
+
+```{r Fig_S8, dpi=400,fig.width=8, fig.height=8, fig.cap=paste("S8 Fig: Randomization test results on branch length transformed OU trees. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. Values inside plots are median PIC values for the corresponding events. In all sets of trees, we obtained distinct patterns by randomization tests from the empirical results of Fig 3B-3D as expected. These results support that our inference is not based on random observation.")}
+
+  
+  ##Making data frame for plotting
+  FrameS8A<-plot_frame(summary_randomized_Tau_2545,"pic","type2")
+  FrameS8B<-plot_frame(summary_randomized_event_2545,"pic","type2")
+  FrameS8C<-plot_frame(summary_randomized_Tau_2080,"pic","type2")
+  FrameS8D<-plot_frame(summary_randomized_event_2080,"pic","type2")
+  FrameS8E<-plot_frame(summary_randomized_Tau_8417,"pic","type2")
+  FrameS8F<-plot_frame(summary_randomized_event_8417,"pic","type2")
+  
+  ## Median data
+  median_dataS8A<-median_df(FrameS8A)
+  median_dataS8B<-median_df(FrameS8B)
+  median_dataS8C<-median_df(FrameS8C)
+  median_dataS8D<-median_df(FrameS8D)
+  median_dataS8E<-median_df(FrameS8E)
+  median_dataS8F<-median_df(FrameS8F)
+  
+  ## Boxplots
+  boxplotS8A<- boxplot_new(FrameS8A,Pval_2545_rtau,median_dataS8A,"type2")+     
+                ggtitle(expression(bold(paste("A. Randomized ", tau, " on 2545 trees"))))+theme(legend.position = "none") +
+              theme(plot.title = element_text(face="bold"))+
+              annotate("text", x=0.87, y=0.04, label=median_dataS8A$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.044, label=median_dataS8A$pic.round[2], fontface=2, size = 3)
+   
+  boxplotS8B<- boxplot_new(FrameS8B,Pval_2545_revent,median_dataS8B,"type2")+   
+              ggtitle(expression(bold(paste("B. Randomized events on 2545 trees"))))+ ylab(" ") + 
+              theme(legend.title=element_blank(),legend.position=c(0.9,0.8))+
+              theme(legend.text=element_text(size=8))+
+              annotate("text", x=0.87, y=0.04, label=median_dataS8B$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.04, label=median_dataS8B$pic.round[2], fontface=2, size = 3) 
+  
+  boxplotS8C<- boxplot_new(FrameS8C,Pval_2080_rtau,median_dataS8C,"type2")+ 
+              ggtitle(expression(bold(paste("C. Randomized ", tau, " on 2080 trees"))))+
+              theme(legend.position = "none")+
+              annotate("text", x=0.87, y=0.04, label=median_dataS8C$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.044, label=median_dataS8C$pic.round[2], fontface=2, size = 3)
+  
+  boxplotS8D<- boxplot_new(FrameS8D,Pval_2080_revent,median_dataS8D,"type2")+   
+              ggtitle(expression(bold(paste("D. Randomized events on 2080 trees"))))+
+              theme(legend.position = "none")+ ylab(" ")+
+              annotate("text", x=0.87, y=0.04, label=median_dataS8D$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.04, label=median_dataS8D$pic.round[2], fontface=2, size = 3)
+  
+  boxplotS8E<- boxplot_new(FrameS8E,Pval_8417_rtau,median_dataS8E,"type2")+ 
+              ggtitle(expression(bold(paste("E. Randomized ", tau, " on 8417 trees"))))+
+              theme(legend.position = "none")+
+              annotate("text", x=0.87, y=0.039, label=median_dataS8E$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.042, label=median_dataS8E$pic.round[2], fontface=2, size = 3)
+  
+  boxplotS8F<- boxplot_new(FrameS8F,Pval_8417_revent,median_dataS8F,"type2")+   
+              ggtitle(expression(bold(paste("F. Randomized events on 8417 trees"))))+
+              theme(legend.position = "none")+ ylab(" ")+
+              annotate("text", x=0.87, y=0.04, label=median_dataS8F$pic.round[1], fontface=2, size = 3)+
+              annotate("text", x=1.13, y=0.04, label=median_dataS8F$pic.round[2], fontface=2, size = 3)
+  
+ ##Plotting the result
+  grid.arrange(boxplotS8A,boxplotS8B,boxplotS8C,boxplotS8D,boxplotS8E,boxplotS8F,nrow=3,ncol=2) 
+  
+
+```
+
+
+```{r Fig_S9, dpi=400,fig.width=8, fig.height=5, fig.cap=paste("S9 Fig: Distribution of proportions of events in 806 BM trees. These trees have a median of ", median_number_of_events, " internal nodes. Most of the trees have speciation nodes whose descendants have the same clade name. Hence, Dunn et al. [@RN760] changed such nodes from speciation events to NA to avoid problem with tree calibration. From the figure, it is clear that the proportion of speciation events is much higher than that of the duplication events. For these trees, the proportions of NA events (median:  ", median_proporion_of_NA_event, ") are even higher than the proportion of duplication events (median: ",median_proporion_of_duplication,"). The dotted line represents the median proportions of the events.")}
+
+  ## Creating a dataframe for plotting the proportions of events
+  df_806 <- data.frame(proportion_event=NA,Event=NA)
+  df_806 <- rbind(df_806, data.frame(proportion_event=tree_data_806$spe_prop,Event="Speciation"))
+  df_806 <- rbind(df_806, data.frame(proportion_event=tree_data_806$dup_prop,Event="Duplication"))
+  df_806 <- rbind(df_806, data.frame(proportion_event=tree_data_806$NA_prop,Event="NA"))
+  df_806 <- df_806[-1,]
+  df_806$Event <- factor(df_806$Event, levels=c("Speciation", "Duplication","NA"))
+  
+  ## Generating plot to show distribution of events for all calibrated trees
+  ggplot2_histogram_mod(data=df_806, xName='proportion_event',
+    groupName='Event',groupColors=c("#F8766D","#00BFC4","#C77CFF"), legendPosition="right",
+    alpha=1, addDensity=TRUE,
+    addMedianLine=TRUE, medianLineColor=c("#F8766D","#00BFC4","#C77CFF"), medianLineSize=1) +
+    theme_classic() +
+    ggtitle(expression(bold("Event proportion plot for 806 BM trees")))+
+    theme(plot.title = element_text(face="bold"))+
+    xlab("Proportion of events") + 
+    ylab("Density") +
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.8),legend.text=element_text(size=8)) +
+    theme(axis.text=element_text(size=10,face="bold")) +
+    theme(plot.title = element_text (face="bold", 
+                              colour="black", lineheight=1.0),
+          axis.title.x=element_text( face="bold",
+                              colour="black", hjust=0.5),
+          axis.title.y=element_text(face="bold",
+                              colour="black", vjust=0.5, angle=90))
+
+```
+
+
+```{r Fig_S10, eval = T, dpi=400,fig.width=8, fig.height= 9, fig.cap= paste("S10 Fig: Analysis on branch length transformed 806 trees that passed diagnostic tests. Wilcoxon two-tailed test was used to estimate the significance level at 95% confidence interval. Values inside plots are median PIC values for the corresponding events.")}
+
+ ## Analysis on branch transformed 806 trees
+ Empirical_data_br_transformed_806_trees<-summary_br_transformed(root_speciation_tree_br_transformed,"Event")
+ 
+ br_tr_806_trees_p<-Wilcoxon_2_sided_br_transform(Empirical_data_br_transformed_806_trees)
+ 
+  ## Randomizing Tau for our trees & contrast calculation after randomization & analysis
+  Tau_randomized_806_OU_tree<-lapply(root_speciation_tree_br_transformed,shuffling_tau)
+  Randomized_Tau_pic_806_OU<-mclapply(Tau_randomized_806_OU_tree,contrast_random,mc.cores = cores)
+  summary_randomized_Tau_806_OU<-summary_br_transformed_rtau(Randomized_Tau_pic_806_OU,"Event")
+  Pval_806_rtau_OU<-Wilcoxon_2_sided_br_transform(summary_randomized_Tau_806_OU)
+  
+  ## Randomizing events for our trees & analysis
+  Event_randomized_806_OU_tree<-lapply(root_speciation_tree_br_transformed,shuffling_event_new)
+  summary_randomized_event_806_OU<-summary_br_transformed(Event_randomized_806_OU_tree,"Event")
+  Pval_806_revent_OU<-Wilcoxon_2_sided_br_transform(summary_randomized_event_806_OU)
+  
+  ##Making data frame for plotting
+  df_806_OU<-plot_frame(Empirical_data_br_transformed_806_trees,"pic","type2")
+  FrameS10A<-plot_frame(summary_randomized_Tau_806_OU,"pic","type2")
+  FrameS10B<-plot_frame(summary_randomized_event_806_OU,"pic","type2")
+
+  ## Median data
+  median_806_OU<- median_df(df_806_OU)
+  median_dataS10A<-median_df(FrameS10A)
+  median_dataS10B<-median_df(FrameS10B)
+  
+
+  ## Boxplots
+  
+  boxplotS10A<-boxplot_new(df_806_OU,br_tr_806_trees_p,median_806_OU,"type2")+
+    ggtitle(expression(bold(paste("A. Result on 806 trees after branch transformation"))))+theme(legend.position=c(0.9,0.8)) + theme(legend.text=element_text(size=8)) +
+    theme(plot.title = element_text(face="bold"))+
+    annotate("text", x=0.87, y=0.042, label=median_806_OU$pic.round[1], fontface=2, size = 4)+
+    annotate("text", x=1.13, y=0.045, label=median_806_OU$pic.round[2], fontface=2, size = 4)
+  
+  
+  boxplotS10B<- boxplot_new(FrameS10A,Pval_806_rtau_OU,median_dataS10A,"type2")+     
+                ggtitle(expression(bold(paste("B. Randomizing ", tau, " on 806  trees"))))+theme(legend.position="none") + theme(legend.text=element_text(size=8)) +
+              theme(plot.title = element_text(face="bold"))+
+              annotate("text", x=0.87, y=0.046, label=median_dataS10A$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.046, label=median_dataS10A$pic.round[2], fontface=2, size = 4)
+  
+   
+  boxplotS10C<- boxplot_new(FrameS10B,Pval_806_revent_OU,median_dataS10B,"type2")+   
+              ggtitle(expression(bold(paste("C. Randomizing events on 806 trees"))))+ theme(legend.title=element_blank(),legend.position="none")+
+              annotate("text", x=0.87, y=0.044, label=median_dataS10B$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.044, label=median_dataS10B$pic.round[2], fontface=2, size = 4)
+  
+              
+  
+ ##Plotting the result
+  grid.arrange(boxplotS10A,boxplotS10B,boxplotS10C,nrow=3,ncol=1)
+   
+
+```
+
+
+
+```{r Fig_S11, eval = T, dpi=400,fig.width=10, fig.height= 9, fig.cap= paste("S11 Fig:  Re-analyses of 3151 trees called as following a BM model by Dunn et al. (A) Wilcoxon two-tailed test was used to obtain the significance level using empirical data. The box plot shows that there is no support for the ortholog conjecture for recent duplicates (age $\\le$ 296 My), but that there is support for the older duplicates. (B) and (C) *P* values estimated using randomized $\\tau$ (B), and using randomized events (C), with a node age limit of 296 My to test if there was any difference in contrasts between speciation and duplication events, and plotted based on 100 independent *P* values. The main plots in (B) and (C) demonstrate that speciation and duplication contrasts differ significantly in each randomization test. The inset plots of (B) and (C) with Wilcoxon one-tailed test to check if duplication contrasts was higher than the speciation contrasts, confirm the opposite trend, as was observed with empirical data with node age $\\le$ 296 My. This suggests that contrasts are not adequately standardized for these trees, and that the inference based on these trees can be misleading.")}
+
+
+  ## Making test on Dunn identified BM trees with node age limits
+  speciation_BM_pic <- nodes_contrast_filtered_bm$pic[which(nodes_contrast_filtered_bm$Event=="Speciation")]
+  duplication_ancient_BM_pic <- nodes_contrast_filtered_bm$pic[which(nodes_contrast_filtered_bm$Event=="Duplication" & nodes_contrast_filtered_bm$node_age > 296 )]
+  duplication_recent_BM_pic <- nodes_contrast_filtered_bm$pic[which(nodes_contrast_filtered_bm$Event=="Duplication" & nodes_contrast_filtered_bm$node_age <= 296)]
+ 
+  
+  ## Performing test 
+  wilcox_test_BM_ancient_dup <- two_tailed_wilcox(duplication_ancient_BM_pic,speciation_BM_pic)
+  wilcox_test_BM_recent_dup <- two_tailed_wilcox(duplication_recent_BM_pic ,speciation_BM_pic)
+  
+  ## Dataframe of speciation and ancient duplication events
+  BM_ancient <- data.frame(pic_tau= NA,Event=NA)
+  BM_ancient <- rbind(BM_ancient, data.frame(pic_tau= speciation_BM_pic,Event="Speciation"))
+  BM_ancient <- rbind(BM_ancient, data.frame(pic_tau= duplication_ancient_BM_pic,Event="Duplication"))
+  BM_ancient <- BM_ancient[-1,]
+  BM_ancient$Event <- factor(BM_ancient$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Creating a dataframe of speciation and recent duplication
+  BM_recent <- data.frame(pic_tau= NA,Event=NA)
+  BM_recent <- rbind(BM_recent, data.frame(pic_tau= speciation_BM_pic, Event="Speciation"))
+  BM_recent <- rbind(BM_recent, data.frame(pic_tau= duplication_recent_BM_pic,Event="Duplication"))
+  BM_recent <- BM_recent[-1,]
+  BM_recent$Event <- factor(BM_recent$Event, levels=c("Speciation", "Duplication"))
+  
+  ## Creating a dataframe for plotting
+  plot_BM <- data.frame(pic=NA, group=NA, Event=NA) ## declaring data frame
+  plot_BM <- rbind(plot_BM, data.frame(pic=BM_recent$pic_tau, group="Duplicate age <= 296 My", Event=BM_recent$Event))
+  plot_BM <- rbind(plot_BM, data.frame(pic=abs(BM_ancient$pic_tau), group="Duplicate age > 296 My", Event=BM_ancient$Event))
+  plot_BM <- plot_BM[-1,]
+  plot_BM$Event <- factor( plot_BM$Event, levels=c("Speciation", "Duplication"))
+  
+  
+  
+  
+  
+  ## Plotting the data
+  dodge <- position_dodge(width = 0.51)
+  
+  plotS11A <- ggplot(plot_BM, aes(group, pic, fill = Event)) +
+    geom_boxplot(width=0.5,outlier.colour=NA, position=dodge, notch=T) +
+   #geom_jitter(aes(colour = Event),position=dodge, alpha=0.02) +
+    xlab(NULL) +
+    ylab(expression(bold(paste("PIC of ",tau)))) +
+    coord_cartesian(ylim=c(0, 0.06)) +
+    theme_classic()+
+    theme(legend.title=element_blank(),legend.position=c(0.9,0.9)) +
+    #theme(legend.position="none")+
+    theme(axis.text.y = element_text(size=10)) +
+    theme(axis.text.x = element_text(size=10,face="bold")) +
+    ggtitle("A. Analyses on BM trees")+
+    theme(plot.title = element_text(face = "bold"))+
+    annotate("text", x=1.04, y=0.05, label=wilcox_test_BM_recent_dup, fontface=4) +
+    annotate("text", x=1.98, y=0.05, label=wilcox_test_BM_ancient_dup, fontface=4)
+  
+   ## Analyses on Pvalue on trees called BM by Dunn et al.
+  pval_BM_dunn <- data.frame(pval_296_2sided=NA,pval_296_1sided=NA,pval_296_2sided_event=NA,pval_296_1sided_event=NA,tree_set=NA)
+  pval_BM_dunn <- rbind(pval_BM_dunn, data.frame(pval_296_2sided=pval_BM_Dunn_296_2sided,pval_296_1sided=pval_BM_Dunn_296_1sided,pval_296_2sided_event= pval_BM_Dunn_296_2sided_event,pval_296_1sided_event=pval_BM_Dunn_296_1sided_event,tree_set="Dunn_BM_trees"))
+  pval_BM_dunn <- pval_BM_dunn[-1,]
+  
+  ## Plotting the randomization data result for BM trees  of Dunn et al.
+  ## Main plots on P value distribution after 1000 runs
+  plotS11BM <- histo_plot(pval_BM_dunn,'pval_296_2sided','tree_set')
+  plotS11BM <- plotS11BM +
+            ylim(0,100) +
+            scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+            ggtitle(expression(bold(paste("B. Plot on BM trees using randomized ", tau))))+
+            theme(plot.title = element_text(face="bold"))+    
+            theme(axis.text=element_text(size=9,face="bold"))+
+            xlab(expression(bold(paste(bolditalic(P)," value (two-tailed) with age <= 296 My")))) 
+  plotS11CM <- histo_plot(pval_BM_dunn,'pval_296_2sided_event','tree_set')
+  plotS11CM <- plotS11CM +
+            ylim(0,100) +
+            scale_x_continuous(limits = c(-0.001,0.05),labels = fancy_scientific)+
+            ggtitle(expression(bold(paste("C. Plot on BM trees using randomized events"))))+
+            theme(plot.title = element_text(face="bold"))+     
+            theme(axis.text=element_text(size=10,face="bold"))+
+            xlab(expression(bold(paste(bolditalic(P)," value (two-tailed) with age <= 296 My")))) 
+  
+  ## Inset plot 
+  plotS11IB <- histo_plot(pval_BM_dunn,'pval_296_1sided','tree_set')+
+              #xlim(0.9,1.01) +
+              scale_x_continuous(limits = c(0.05,1.001),labels = fancy_scientific)+
+              ylim(0,100) +
+              xlab(expression(bold(paste(bolditalic(P)," value (one-tailed) with age <= 296 My")))) 
+  plotS11IC <- histo_plot(pval_BM_dunn,'pval_296_1sided_event','tree_set')+
+              scale_x_continuous(limits = c(0.05,1.001),labels = fancy_scientific)+
+              ylim(0,100) +
+              xlab(expression(bold(paste(bolditalic(P)," value (one-tailed) with age <= 296 My"))))
+  
+  ## Preparing final plots and arranging them
+  plotS11B <- ggdraw() +
+    draw_plot(plotS11BM) +
+    draw_plot(plotS11IB, x = .45, y = .4, width = .5, height = .57, scale=0.8)
+ 
+  plotS11C <- ggdraw() +
+    draw_plot(plotS11CM) +
+    draw_plot(plotS11IC, x = .45, y = .4, width = .5, height = .57,scale=0.8)
+ 
+ grid.arrange(plotS11A,plotS11B,plotS11C,nrow = 3) 
+  
+  
+```
+
+
+```{r Fig_S12, dpi=600,fig.width=8, fig.height=8, fig.cap=paste("S12 Fig: Randomization test results on branch length transformed BM trees. *P* values are from Wilcoxon two-tailed tests. Values inside plots are median PIC values for the corresponding events. (A) Permuting \\$tau, and (B) permuting internal events on contrast standardized branch length transformed trees always produced distinct patterns from the empirical results of Fig 5B, as expected.")}
+
+  ## Randomizing Tau for our trees & contrast calculation after randomization & analysis
+  Tau_randomized_3144_tree<-lapply(BM_tree_all_br_transformed,shuffling_tau)
+  Randomized_Tau_pic_3144<-mclapply(Tau_randomized_3144_tree,contrast_random,mc.cores = cores)
+  summary_randomized_Tau_3144<-summary_br_transformed_rtau(Randomized_Tau_pic_3144,"Event")
+  Pval_3144_rtau<-Wilcoxon_2_sided_br_transform(summary_randomized_Tau_3144)
+  
+  ## Randomizing events for our trees & analysis
+  Event_randomized_3144_tree<-lapply(BM_tree_all_br_transformed,shuffling_event_new)
+  summary_randomized_event_3144<-summary_br_transformed(Event_randomized_3144_tree,"Event")
+  Pval_3144_revent<-Wilcoxon_2_sided_br_transform(summary_randomized_event_3144)
+  
+  
+  ##Making data frame for plotting
+  FrameS12A<-plot_frame(summary_randomized_Tau_3144,"pic","type2")
+  FrameS12B<-plot_frame(summary_randomized_event_3144,"pic","type2")
+
+  ## Median data
+  median_dataS12A<-median_df(FrameS12A)
+  median_dataS12B<-median_df(FrameS12B)
+  
+
+  ## Boxplots
+  boxplotS12A<- boxplot_new(FrameS12A,Pval_3144_rtau,median_dataS12A,"type2")+     
+                ggtitle(expression(bold(paste("A. Randomizing ", tau, " on 3144 BM trees"))))+theme(legend.position=c(0.9,0.8)) +                     theme(legend.text=element_text(size=8)) +
+              theme(plot.title = element_text(face="bold"))+
+              annotate("text", x=0.87, y=0.06, label=median_dataS12A$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.028, label=median_dataS12A$pic.round[2], fontface=2, size = 4)
+   
+  boxplotS12B<- boxplot_new(FrameS12B,Pval_3144_revent,median_dataS12B,"type2")+   
+              ggtitle(expression(bold(paste("B. Randomizing events on 3144 BM trees"))))+ ylab(" ") + 
+              theme(legend.title=element_blank(),legend.position="none") +
+              annotate("text", x=0.87, y=0.042, label=median_dataS12B$pic.round[1], fontface=2, size = 4)+
+              annotate("text", x=1.13, y=0.037, label=median_dataS12B$pic.round[2], fontface=2, size = 4)
+              
+  
+ ##Plotting the result
+  grid.arrange(boxplotS12A,boxplotS12B,nrow=2,ncol=1) 
+  
+
+```
+
+
+
+
+\vspace{0.5cm}
+
+\pagebreak
+
+
+### Reference
