@@ -30,7 +30,7 @@ library(bayou)
 
 
 ## Setting working directory
-setwd("/Users/admin/Desktop/nwork/simulation/")
+setwd("/Users/admin/Desktop/nwork/TMRR/")
 
 ## Functions required
 source("functions_Dunn.R")	## Original function script provided by Dunn et al.(2018)
