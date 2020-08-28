@@ -18,7 +18,7 @@ library(tidyverse)
 library(caper)
 
 ## Setting working directory s
-setwd("/Users/admin/Desktop/nwork/simulation/")
+setwd("/Users/admin/Desktop/nwork/TMRR/")
 set.seed(23456)
 
 ## Functions required to run this script
@@ -33,7 +33,7 @@ run<-100
 
 ## To perform analyses, we loaded our newly processed dataset, which were previously saved by running "Model_fitting.R" script
 ## That also includes the results of Dunn et al. (2018)
-load("/Users/admin/Desktop/nwork/simulation/Dunn_tree_index_mapping_new.rda")
+load("Dunn_tree_index_mapping_new.rda")
 
 ## To perform analyses, we filtered gene trees with negative branchlengths from the dataset of Dunn et al. (2018)
 ## Identifying calibrated trees with negative edge lengths
