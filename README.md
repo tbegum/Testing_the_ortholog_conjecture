@@ -1,18 +1,23 @@
 
 ### Brief Description 
 
-This repository contains files associated with our manuscript: "Phylogenetic comparative methods are problematic when applied to gene trees with speciation and duplication nodes: correcting for biases in testing the ortholog conjecture".
+This repository contains required scripts, and files associated with our manuscript: "Special care is needed in applying phylogenetic comparative methods to gene trees with speciation and duplication nodes".
 
-The files include:
+This includes:
 
-Manuscript.Rmd - This file contains detailed text of our manuscript and the codes to reproduce our results. This analysis is based on reanalyses of a published paper by Dunn et al. (doi:10.1073/pnas.1707515115). We used the same compara gene tree file (ftp://ftp.ensembl.org/pub/release-75/emf/ensembl-compara/homologies/) as Dunn et al. used for their study. Before running our analysis, one need to run "manuscript_kernel.R" script of Dunn et al. using the required files available in the "kmrr" folder of their github repository. For our reanalysis, we ran the script and stored the output in the “manuscript_dunn.RData” file (https://doi.org/10.5281/zenodo.3604104). 
+README.md - This contains a brief description about all the scripts, and files provided here.
 
-Premanuscript_run_TM.R - To save time during knitting of the "Manuscript.Rmd" file, one needs to run the script "Premanuscript_run_TM.R" first. The outputs are generated and saved as "Data_TMRR_latest.rda" available in https://doi.org/10.5281/zenodo.3604104.
+Model_fitting.R - This script is written to fix time calibration bias of old duplicates in a phylogeny with speciation and duplication nodes. It also performs phylogenetic data modeling in a maximum-likelihood, and in a Bayesian frameworks. The outputs of this script are saved as "Model_fitting_TMRR.Rdata", and is archived at https://doi.org/10.5281/zenodo.4003391. 
 
-TM.bib - The Bibliography file of our Rmarkdown file. 
+Premanuscript_run_TMRR.R - This script is required to reanalyze the results of Dunn et al. (2018) using a Phylogenetic Independent Contrasts (PIC) method. It also provides a guideline to implement PIC on gene trees to study the effect of gene duplication, and to assess the results of PIC method. The outputs are saved as "Analyses_TMRR.Rdata", and is available at https://doi.org/10.5281/zenodo.4003391. 
 
-functions_Dunn.R - The script adopted from Dunn et al. and renamed. The script contains functions, which were used to reproduce the results of Dunn et al. Some of the functions were further used in our study.      
+functions_Dunn.R - To reproduce the results of Dunn et al. (2018), we used their functions ("functions.R") from https://github.com/caseywdunn/comparative_expression_2017. The same is provided here by renaming it as "functions_Dunn.R". 
 
-funtion_TM_new.R - Additional script of functions written for our analysis.
+funtion_TM_new.R - All the functions required to reproduce the results of this study.
 
-plos.csl - CSL style used in our Manuscript.Rmd file.
+Manuscript.Rmd - This R markdown file contains our  manuscript text, and source codes. To knit the markdown file, one needs to have outputs available at zenodo (https://doi.org/10.5281/zenodo.4003391). This includes the output of the study of Dunn et al. (2018), which was reproduced by using the script "manuscript_kernel.R" of them, and by using the necessary files provided on their github (https://github.com/caseywdunn/comparative_expression_2017). The reproduced output of Dunn et al. (2018) is stored at the zenodo link mentioned above as "manuscript_dunn.RData".  
+
+TM.bib - The required bibliography to knit the Rmarkdown file. 
+
+molecular-biology-and-evolution.csl - CSL style used in our Rmarkdown.
+
