@@ -1,15 +1,17 @@
 
 ### Brief Description 
 
-This repository contains required scripts, and files associated with our manuscript: "Special care is needed in applying phylogenetic comparative methods to gene trees with speciation and duplication nodes".
+This repository contains all the required scripts, and files associated with ourpublished manuscript: 
 
-This includes:
+Begum T, Robinson-Rechavi M (2021). Special care is needed in applying phylogenetic comparative methods to gene trees with speciation and duplication nodes. Molecular Biology and Evolution. https://doi.org/10.1093/molbev/msaa288.
 
-README.md - This contains a brief description about all the scripts, and files provided here.
+This git repository includes:
 
-Model_fitting.R - This script is written to fix time calibration bias of old duplicates in a phylogeny with speciation and duplication nodes. It also performs phylogenetic data modeling in a maximum-likelihood, and in a Bayesian frameworks. The outputs of this script are saved as "Model_fitting_TMRR.Rdata", and is archived at https://doi.org/10.5281/zenodo.4003391. 
+README.md - It contains a brief description about all the required scripts, and files.
 
-Premanuscript_run_TMRR.R - This script is required to reanalyze the results of Dunn et al. (2018) using a Phylogenetic Independent Contrasts (PIC) method. It also provides a guideline to implement PIC on gene trees to study the effect of gene duplication, and to assess the results of PIC method. The outputs are saved as "Analyses_TMRR.Rdata", and is available at https://doi.org/10.5281/zenodo.4003391.The reproduced output of Dunn et al. (2018) is stored at the zenodo link mentioned above as "manuscript_dunn.RData". 
+Model_fitting.R - This script is written to fix time calibration bias of old duplicates in a phylogeny with atleast one speciation and one duplication nodes. It also performs phylogenetic data modeling in a maximum-likelihood, and in a Bayesian frameworks. The outputs of this script are saved as "Model_fitting_TMRR.Rdata", and is archived at https://doi.org/10.5281/zenodo.4003391. 
+
+Premanuscript_run_TMRR.R - This script is required to reanalyze the results of Dunn et al. (2018) using a Phylogenetic Independent Contrasts (PICs) method. It also provides a guideline to implement PIC on gene trees to study the effect of gene duplication, and to assess the results of PIC method. The outputs are saved as "Analyses_TMRR.Rdata", and is available at https://doi.org/10.5281/zenodo.4003391.The reproduced output of Dunn et al. (2018) is stored at the zenodo link mentioned above as "manuscript_dunn.RData". 
 
 functions_Dunn.R - To reproduce the results of Dunn et al. (2018), we used their functions ("functions.R") from https://github.com/caseywdunn/comparative_expression_2017. The same is provided here by renaming it as "functions_Dunn.R". 
 
